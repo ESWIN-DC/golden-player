@@ -46,7 +46,8 @@ SUBDIRS = \
 	samples/backend \
 	samples/frontend \
 	samples/v4l2cuda \
-	tools/ConvertCaffeToTrtModel
+	tools/ConvertCaffeToTrtModel \
+	samples/golden_player
 
 .PHONY: all
 all:

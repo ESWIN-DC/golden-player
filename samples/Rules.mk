@@ -65,7 +65,7 @@ ALGO_TRT_DIR 	:= $(TOP_DIR)/samples/common/algorithm/trt
 ifeq ($(shell uname -m), aarch64)
 CROSS_COMPILE :=
 else
-CROSS_COMPILE ?= aarch64-unknown-linux-gnu-
+CROSS_COMPILE ?= aarch64-linux-gnu-
 endif
 AS             = $(AT) $(CROSS_COMPILE)as
 LD             = $(AT) $(CROSS_COMPILE)ld
@@ -90,13 +90,15 @@ endif
 
 # All common header files
 CPPFLAGS += -std=c++11 \
+	-fPIC \
 	-I"$(TOP_DIR)/include" \
 	-I"$(TOP_DIR)/include/libjpeg-8b" \
 	-I"$(ALGO_CUDA_DIR)" \
 	-I"$(ALGO_TRT_DIR)" \
 	-I"$(TARGET_ROOTFS)/$(CUDA_PATH)/include" \
 	-I"$(TARGET_ROOTFS)/usr/include/$(TEGRA_ARMABI)" \
-	-I"$(TARGET_ROOTFS)/usr/include/libdrm"
+	-I"$(TARGET_ROOTFS)/usr/include/libdrm" \
+	-I"$(TARGET_ROOTFS)/usr/include/opencv4"
 
 # All common dependent libraries
 LDFLAGS += \

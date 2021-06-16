@@ -1698,7 +1698,7 @@ decode_proc(context_t& ctx, int argc, char *argv[])
                 read_decoder_input_chunk(ctx.in_file[current_file], buffer);
             }
         }
-        if (ctx.decoder_pixfmt == V4L2_PIX_FMT_VP9 || ctx.decoder_pixfmt == V4L2_PIX_FMT_VP8)
+        else if (ctx.decoder_pixfmt == V4L2_PIX_FMT_VP9 || ctx.decoder_pixfmt == V4L2_PIX_FMT_VP8)
         {
             ret = read_vpx_decoder_input_chunk(&ctx, buffer);
             if (ret != 0)

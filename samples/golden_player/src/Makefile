@@ -1,11 +1,15 @@
 
 include ../../Rules.mk
 
-APP := gplayer
+CPPFLAGS += -I"../include"
+
+APP := libgplayer.a
 
 SRCS := \
-	csvparser.cpp \
-	gplayer.cpp \
+	video_decode_context.cpp \
+	video_encode_context.cpp \
+	video_decoder.cpp \
+	video_encoder.cpp \
 	$(wildcard $(CLASS_DIR)/*.cpp)
 
 OBJS := $(SRCS:.cpp=.o)
@@ -21,7 +25,7 @@ $(CLASS_DIR)/%.o: $(CLASS_DIR)/%.cpp
 
 $(APP): $(OBJS)
 	@echo "Linking: $@"
-	$(CPP) -o $@ $(OBJS) $(CPPFLAGS) $(LDFLAGS)
+	$(AR) rcs $@ $(OBJS) 
 
 clean:
 	$(AT)rm -rf $(APP) $(OBJS)
