@@ -6,8 +6,10 @@ CPPFLAGS += -I"../include"
 APP := libgplayer.a
 
 SRCS := \
-	csvparser.cpp \
+	video_decode_context.cpp \
+	video_encode_context.cpp \
 	video_decoder.cpp \
+	video_encoder.cpp \
 	$(wildcard $(CLASS_DIR)/*.cpp)
 
 OBJS := $(SRCS:.cpp=.o)

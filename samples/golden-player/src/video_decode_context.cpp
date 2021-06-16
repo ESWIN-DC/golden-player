@@ -131,7 +131,7 @@ static int32_t get_dbg_level(char* arg)
     return log_level;
 }
 
-int parse_csv_args(context_t* ctx, int argc, char* argv[])
+int parse_csv_args(VideoDecodeContext_T* ctx, int argc, char* argv[])
 {
     char** argp = argv;
     char* arg = *(++argp);
@@ -339,5 +339,7 @@ error:
     print_help();
     return -1;
 }
+
+
 
 }  // namespace GPlayer

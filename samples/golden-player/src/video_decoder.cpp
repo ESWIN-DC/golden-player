@@ -725,7 +725,7 @@ error:
 
 void* VideoDecoder::decoder_pollthread_fcn(void* arg)
 {
-    context_t* ctx = (context_t*)arg;
+    VideoDecodeContext_T* ctx = static_cast<VideoDecodeContext_T*>(arg);
     v4l2_ctrl_video_device_poll devicepoll;
 
     cout << "Starting Device Poll Thread " << endl;
@@ -760,7 +760,7 @@ void* VideoDecoder::decoder_pollthread_fcn(void* arg)
 void* VideoDecoder::dec_capture_loop_fcn(void* arg)
 {
     VideoDecoder* videoDecoder = (VideoDecoder*)arg;
-    std::shared_ptr<GPlayer::context_t> ctx = videoDecoder->ctx_;
+    std::shared_ptr<GPlayer::VideoDecodeContext_T> ctx = videoDecoder->ctx_;
     NvVideoDecoder* dec = ctx->dec;
     struct v4l2_event ev;
     int ret;

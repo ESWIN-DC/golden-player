@@ -1,4 +1,3 @@
-
 #ifndef __DECODER__
 #define __DECODER__
 
@@ -18,6 +17,7 @@
 #include "NvApplicationProfiler.h"
 #include "NvUtils.h"
 
+#include "context.h"
 #include "gplayer.h"
 #include "nvbuf_utils.h"
 
@@ -115,7 +115,7 @@ public:
     int decode_proc(int argc, char* argv[]);
     
 private:
-    shared_ptr<context_t> ctx_;
+    shared_ptr<VideoDecodeContext_T> ctx_;
 };
 
 }; // namespace gplayer
