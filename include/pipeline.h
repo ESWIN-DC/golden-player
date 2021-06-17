@@ -2,6 +2,7 @@
 #ifndef __PIPELINE__
 #define __PIPELINE__
 
+#include <list>
 #include <memory>
 
 #include "task.h"
@@ -18,6 +19,9 @@ public:
     bool Run();
     bool Reload();
     bool Terminate();
+
+private:
+    std::list<std::shared_ptr<ITask>> tasks_;
 };
 
 }  // namespace GPlayer

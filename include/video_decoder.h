@@ -68,6 +68,8 @@ private:
 public:
     VideoDecoder(const shared_ptr<VideoDecodeContext_T> context);
 
+    std::string GetInfo() const;
+
     int read_decoder_input_nalu(ifstream* stream,
                                 NvBuffer* buffer,
                                 char* parse_buffer,

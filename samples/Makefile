@@ -1,12 +1,12 @@
-include ../../Rules.mk
+include ../Rules.mk
 
 APP := gplayer
 
-ARGUS_UTILS_DIR := $(TOP_DIR)/argus/samples/utils
+ARGUS_UTILS_DIR := $(TOP_DIR)/third_party/tegra_multimedia_api-R32.2.3/argus/samples/utils
 
 CPPFLAGS += \
 	-I"$(ARGUS_UTILS_DIR)" \
-	-I"$(TOP_DIR)/samples/golden_player/include"
+	-I"$(TOP_DIR)/include"
 
 LDFLAGS += \
 	-L"../src" \

@@ -96,6 +96,8 @@ private:
 
 class CameraRecorder : public ITask {
 public:
+    std::string GetInfo() const;
+
     /*******************************************************************************
      * Argus Producer thread:
      *   Opens the Argus camera driver, creates an BufferOutputStream to output

@@ -38,6 +38,11 @@ VideoEncoder::VideoEncoder(const shared_ptr<VideoEncodeContext_T> context)
     ctx_ = context;
 }
 
+std::string VideoEncoder::GetInfo() const
+{
+    return "VideoEncoder";
+}
+
 void VideoEncoder::Abort()
 {
     VideoEncodeContext_T* ctx = ctx_.get();

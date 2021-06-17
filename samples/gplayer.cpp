@@ -35,6 +35,7 @@ int main(int argc, char* argv[])
     pipeline->Add(recorder);
     pipeline->Add(encoder);
     pipeline->Add(decoder);
+
     pipeline->Run();
 
     if (ret) {

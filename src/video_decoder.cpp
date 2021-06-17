@@ -61,6 +61,11 @@ VideoDecoder::VideoDecoder(const shared_ptr<VideoDecodeContext_T> context)
     ctx_ = context;
 }
 
+std::string VideoDecoder::GetInfo() const
+{
+    return "VideoDecoder";
+}
+
 int VideoDecoder::read_decoder_input_nalu(ifstream* stream,
                                           NvBuffer* buffer,
                                           char* parse_buffer,

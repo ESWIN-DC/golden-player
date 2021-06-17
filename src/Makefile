@@ -1,11 +1,11 @@
 
-include ../../Rules.mk
+include ../Rules.mk
 
 APP := libgplayer.a
 
 CPPFLAGS += \
 	-Wall -O1 -g\
-	-I"$(TOP_DIR)/samples/golden_player/include"
+	-I"$(TOP_DIR)/include"
 
 SRCS := \
 	video_decode_context.cpp \
@@ -18,7 +18,7 @@ SRCS := \
 	$(wildcard $(CLASS_DIR)/*.cpp)
 
 
-ARGUS_UTILS_DIR := $(TOP_DIR)/argus/samples/utils
+ARGUS_UTILS_DIR := $(TOP_DIR)/third_party/tegra_multimedia_api-R32.2.3/argus/samples/utils
 
 SRCS += \
 	$(ARGUS_UTILS_DIR)/Thread.cpp \

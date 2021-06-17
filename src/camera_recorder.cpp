@@ -297,6 +297,11 @@ bool ConsumerThread::encoderCapturePlaneDqCallback(struct v4l2_buffer* v4l2_buf,
     return true;
 }
 
+std::string CameraRecorder::GetInfo() const
+{
+    return "CameraRecorder";
+}
+
 /*******************************************************************************
  * Argus Producer thread:
  *   Opens the Argus camera driver, creates an BufferOutputStream to output

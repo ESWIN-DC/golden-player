@@ -1,3 +1,4 @@
 *.o
 src/libgplayer.a
 gplayer
+.ccls-cache

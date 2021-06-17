@@ -49,6 +49,8 @@ private:
 public:
     VideoEncoder(const shared_ptr<VideoEncodeContext_T> context);
 
+    std::string GetInfo() const;
+
     void Abort();
 
     // Initialise CRC Rec and creates CRC Table based on the polynomial.
