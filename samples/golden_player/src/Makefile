@@ -14,6 +14,7 @@ SRCS := \
 	video_encoder.cpp \
 	camera_recorder.cpp \
 	display.cpp \
+	pipeline.cpp \
 	$(wildcard $(CLASS_DIR)/*.cpp)
 
 

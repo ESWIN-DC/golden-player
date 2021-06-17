@@ -14,6 +14,7 @@
 #include "Error.h"
 #include "Thread.h"
 #include "nvmmapi/NvNativeBuffer.h"
+#include "task.h"
 
 using namespace Argus;
 using namespace ArgusSamples;
@@ -93,7 +94,7 @@ private:
     bool m_gotError;
 };
 
-class CameraRecorder {
+class CameraRecorder : public ITask {
 public:
     /*******************************************************************************
      * Argus Producer thread:

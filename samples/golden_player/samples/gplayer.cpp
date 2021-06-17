@@ -21,14 +21,21 @@ int main(int argc, char* argv[])
         std::make_shared<VideoDecodeContext_T>();
     shared_ptr<VideoEncodeContext_T> econtext =
         std::make_shared<VideoEncodeContext_T>();
-    VideoDecoder* decoder = new VideoDecoder(dcontext);
-    VideoEncoder* encoder = new VideoEncoder(econtext);
-    CameraRecorder* recorder = new CameraRecorder;
+    shared_ptr<VideoDecoder> decoder = std::make_shared<VideoDecoder>(dcontext);
+    shared_ptr<VideoEncoder> encoder = std::make_shared<VideoEncoder>(econtext);
+    shared_ptr<CameraRecorder> recorder = std::make_shared<CameraRecorder>();
 
     ret = decoder->decode_proc(argc, argv);
     ret = encoder->encode_proc(argc, argv);
 
+    recorder->parseCmdline(argc, argv);
     recorder->Execute();
+
+    Pipeline* pipeline = new Pipeline();
+    pipeline->Add(recorder);
+    pipeline->Add(encoder);
+    pipeline->Add(decoder);
+    pipeline->Run();
 
     if (ret) {
         cout << "App run failed" << endl;
@@ -36,6 +43,8 @@ int main(int argc, char* argv[])
     else {
         cout << "App run was successful" << endl;
     }
+
+    delete pipeline;
 
     return ret;
 }

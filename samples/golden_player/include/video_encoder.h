@@ -18,6 +18,7 @@
 #include "context.h"
 #include "gplayer.h"
 #include "nvbuf_utils.h"
+#include "task.h"
 
 #include "NvVideoEncoder.h"
 
@@ -41,7 +42,7 @@ namespace GPlayer {
 
 using namespace std;
 
-class VideoEncoder {
+class VideoEncoder : public ITask {
 private:
     VideoEncoder();
 

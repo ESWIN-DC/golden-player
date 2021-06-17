@@ -20,6 +20,7 @@
 #include "context.h"
 #include "gplayer.h"
 #include "nvbuf_utils.h"
+#include "task.h"
 
 #define TEST_ERROR(cond, str, label) \
     if (cond) {                      \
@@ -60,7 +61,7 @@ namespace GPlayer {
 
 using namespace std;
 
-class VideoDecoder {
+class VideoDecoder : public ITask {
 private:
     VideoDecoder();
 
