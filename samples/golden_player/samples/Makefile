@@ -2,10 +2,18 @@ include ../../Rules.mk
 
 APP := gplayer
 
-CPPFLAGS += -I"../include"
+ARGUS_UTILS_DIR := $(TOP_DIR)/argus/samples/utils
+
+CPPFLAGS += \
+	-I"$(ARGUS_UTILS_DIR)" \
+	-I"$(TOP_DIR)/samples/golden_player/include"
+
 LDFLAGS += \
 	-L"../src" \
 	-lgplayer
+
+LDFLAGS += \
+	-lnveglstream_camconsumer -lnvargus_socketclient	
 
 SRCS := \
 	gplayer.cpp \

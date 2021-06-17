@@ -17,13 +17,18 @@ using namespace GPlayer;
 int main(int argc, char* argv[])
 {
     int ret = 0;
-    shared_ptr<VideoDecodeContext_T> dcontext = std::make_shared<VideoDecodeContext_T>();
-    shared_ptr<VideoEncodeContext_T> econtext = std::make_shared<VideoEncodeContext_T>();
-    VideoDecoder* decoder = new VideoDecoder;
-    VideoEncoder* encoder = new VideoEncoder;
+    shared_ptr<VideoDecodeContext_T> dcontext =
+        std::make_shared<VideoDecodeContext_T>();
+    shared_ptr<VideoEncodeContext_T> econtext =
+        std::make_shared<VideoEncodeContext_T>();
+    VideoDecoder* decoder = new VideoDecoder(dcontext);
+    VideoEncoder* encoder = new VideoEncoder(econtext);
+    CameraRecorder* recorder = new CameraRecorder;
 
     ret = decoder->decode_proc(argc, argv);
     ret = encoder->encode_proc(argc, argv);
+
+    recorder->Execute();
 
     if (ret) {
         cout << "App run failed" << endl;

@@ -7,16 +7,16 @@
 #include <linux/videodev2.h>
 #include <malloc.h>
 #include <poll.h>
+#include <semaphore.h>
 #include <string.h>
 #include <fstream>
 #include <iostream>
-#include <sstream>
 #include <memory>
-#include <semaphore.h>
+#include <sstream>
 
+#include "NvUtils.h"
 #include "context.h"
 #include "gplayer.h"
-#include "NvUtils.h"
 #include "nvbuf_utils.h"
 
 #include "NvVideoEncoder.h"
@@ -42,7 +42,12 @@ namespace GPlayer {
 using namespace std;
 
 class VideoEncoder {
+private:
+    VideoEncoder();
+
 public:
+    VideoEncoder(const shared_ptr<VideoEncodeContext_T> context);
+
     void Abort();
 
     // Initialise CRC Rec and creates CRC Table based on the polynomial.
@@ -155,4 +160,4 @@ private:
 
 }  // namespace GPlayer
 
-#endif // __VIDEOENCODER_H__
+#endif  // __VIDEOENCODER_H__

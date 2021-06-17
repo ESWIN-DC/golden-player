@@ -33,20 +33,26 @@ namespace GPlayer {
 
 using namespace std;
 
+VideoEncoder::VideoEncoder(const shared_ptr<VideoEncodeContext_T> context)
+{
+    ctx_ = context;
+}
+
 void VideoEncoder::Abort()
 {
-    VideoEncodeContext_T *ctx = ctx_.get();
+    VideoEncodeContext_T* ctx = ctx_.get();
     ctx->got_error = true;
     ctx->enc->abort();
 }
 
-bool VideoEncoder::encoder_capture_plane_dq_callback(struct v4l2_buffer* v4l2_buf,
-                                              NvBuffer* buffer,
-                                              NvBuffer* shared_buffer,
-                                              void* arg)
+bool VideoEncoder::encoder_capture_plane_dq_callback(
+    struct v4l2_buffer* v4l2_buf,
+    NvBuffer* buffer,
+    NvBuffer* shared_buffer,
+    void* arg)
 {
-    VideoEncoder *videoEncoder = static_cast<VideoEncoder*>(arg);
-    VideoEncodeContext_T *ctx = videoEncoder->ctx_.get();
+    VideoEncoder* videoEncoder = static_cast<VideoEncoder*>(arg);
+    VideoEncodeContext_T* ctx = videoEncoder->ctx_.get();
     NvVideoEncoder* enc = ctx->enc;
     pthread_setname_np(pthread_self(), "EncCapPlane");
     uint32_t frame_num = ctx->enc->capture_plane.getTotalDequeuedBuffers() - 1;
@@ -83,7 +89,7 @@ bool VideoEncoder::encoder_capture_plane_dq_callback(struct v4l2_buffer* v4l2_bu
     // Computing CRC with each frame
     if (ctx->pBitStreamCrc)
         videoEncoder->CalculateCrc(ctx->pBitStreamCrc, buffer->planes[0].data,
-                     buffer->planes[0].bytesused);
+                                   buffer->planes[0].bytesused);
 
     videoEncoder->write_encoder_output_frame(ctx->out_file, buffer);
     num_encoded_frames++;
@@ -187,7 +193,7 @@ bool VideoEncoder::encoder_capture_plane_dq_callback(struct v4l2_buffer* v4l2_bu
 
 int VideoEncoder::get_next_parsed_pair(char* id, uint32_t* value)
 {
-    VideoEncodeContext_T *ctx = ctx_.get();
+    VideoEncodeContext_T* ctx = ctx_.get();
     char charval;
 
     *ctx->runtime_params_str >> *id;
@@ -212,7 +218,7 @@ int VideoEncoder::get_next_parsed_pair(char* id, uint32_t* value)
 
 int VideoEncoder::set_runtime_params()
 {
-    VideoEncodeContext_T *ctx = ctx_.get();
+    VideoEncodeContext_T* ctx = ctx_.get();
     char charval;
     uint32_t intval;
     int ret, next;
@@ -298,7 +304,7 @@ err:
 
 int VideoEncoder::get_next_runtime_param_change_frame()
 {
-    VideoEncodeContext_T *ctx = ctx_.get();
+    VideoEncodeContext_T* ctx = ctx_.get();
     char charval;
     int ret;
 
@@ -320,7 +326,7 @@ err:
 
 void VideoEncoder::set_defaults()
 {
-    VideoEncodeContext_T *ctx = ctx_.get();
+    VideoEncodeContext_T* ctx = ctx_.get();
     memset(ctx, 0, sizeof(VideoEncodeContext_T));
 
     ctx->raw_pixfmt = V4L2_PIX_FMT_YUV420M;
@@ -365,8 +371,9 @@ void VideoEncoder::set_defaults()
     ctx->blocking_mode = 1;
 }
 
-void VideoEncoder::populate_roi_Param(std::ifstream* stream,
-                               v4l2_enc_frame_ROI_params* VEnc_ROI_params)
+void VideoEncoder::populate_roi_Param(
+    std::ifstream* stream,
+    v4l2_enc_frame_ROI_params* VEnc_ROI_params)
 {
     unsigned int ROIIndex = 0;
 
@@ -448,7 +455,7 @@ restart:
 
 int VideoEncoder::setup_output_dmabuf(uint32_t num_buffers)
 {
-    VideoEncodeContext_T *ctx = ctx_.get();
+    VideoEncodeContext_T* ctx = ctx_.get();
     int ret = 0;
     NvBufferCreateParams cParams;
     int fd;
@@ -507,8 +514,8 @@ restart:
 }
 
 void VideoEncoder::populate_gdr_Param(std::ifstream* stream,
-                               uint32_t* start_frame_num,
-                               uint32_t* gdr_num_frames)
+                                      uint32_t* start_frame_num,
+                                      uint32_t* gdr_num_frames)
 {
     if (stream->eof()) {
         *start_frame_num = 0xFFFFFFFF;
@@ -567,7 +574,7 @@ int VideoEncoder::encoder_proc_nonblocking(bool eos)
     // Since all the output plane buffers have been queued, we first need to
     // dequeue a buffer from output plane before we can read new data into it
     // and queue it again.
-    VideoEncodeContext_T *ctx = ctx_.get(); 
+    VideoEncodeContext_T* ctx = ctx_.get();
     int ret = 0;
 
     while (!ctx->got_error && !ctx->enc->isInError()) {
@@ -597,7 +604,7 @@ int VideoEncoder::encoder_proc_nonblocking(bool eos)
             // again. Could be moved out to a different thread as an
             // optimization.
             ret = ctx->enc->output_plane.dqBuffer(v4l2_output_buf,
-                                                 &outplane_buffer, NULL, 10);
+                                                  &outplane_buffer, NULL, 10);
             if (ret < 0) {
                 if (errno == EAGAIN) {
                     goto check_capture_buffers;
@@ -705,7 +712,7 @@ int VideoEncoder::encoder_proc_nonblocking(bool eos)
 
                 if (VEnc_imeta_param.flag) {
                     ctx->enc->SetInputMetaParams(v4l2_output_buf.index,
-                                                VEnc_imeta_param);
+                                                 VEnc_imeta_param);
                     v4l2_output_buf.reserved2 = v4l2_output_buf.index;
                 }
             }
@@ -772,7 +779,7 @@ int VideoEncoder::encoder_proc_nonblocking(bool eos)
             // again. Could be moved out to a different thread as an
             // optimization.
             ret = ctx->enc->capture_plane.dqBuffer(v4l2_capture_buf,
-                                                  &capplane_buffer, NULL, 10);
+                                                   &capplane_buffer, NULL, 10);
             if (ret < 0) {
                 if (errno == EAGAIN)
                     break;
@@ -796,7 +803,7 @@ int VideoEncoder::encoder_proc_nonblocking(bool eos)
 
 int VideoEncoder::encoder_proc_blocking(bool eos)
 {
-    VideoEncodeContext_T *ctx = ctx_.get();
+    VideoEncodeContext_T* ctx = ctx_.get();
     int ret = 0;
     // Keep reading input till EOS is reached
     while (!ctx->got_error && !ctx->enc->isInError() && !eos) {
@@ -875,7 +882,8 @@ int VideoEncoder::encoder_proc_blocking(bool eos)
                     VEnc_imeta_param.VideoEncRPSParams =
                         &VEnc_ext_rps_ctrl_params;
                     populate_ext_rps_ctrl_Param(
-                        ctx->rps_Param_file, VEnc_imeta_param.VideoEncRPSParams);
+                        ctx->rps_Param_file,
+                        VEnc_imeta_param.VideoEncRPSParams);
                 }
             }
 
@@ -961,7 +969,7 @@ cleanup:
 
 int VideoEncoder::encode_proc(int argc, char* argv[])
 {
-    VideoEncodeContext_T *ctx = ctx_.get();
+    VideoEncodeContext_T* ctx = ctx_.get();
     int ret = 0;
     int error = 0;
     bool eos = false;
@@ -993,7 +1001,8 @@ int VideoEncoder::encode_proc(int argc, char* argv[])
     TEST_ERROR(!ctx->in_file->is_open(), "Could not open input file", cleanup);
 
     ctx->out_file = new ofstream(ctx->out_file_path);
-    TEST_ERROR(!ctx->out_file->is_open(), "Could not open output file", cleanup);
+    TEST_ERROR(!ctx->out_file->is_open(), "Could not open output file",
+               cleanup);
 
     if (ctx->ROI_Param_file_path) {
         ctx->roi_Param_file = new ifstream(ctx->ROI_Param_file_path);
@@ -1046,7 +1055,7 @@ int VideoEncoder::encode_proc(int argc, char* argv[])
     // Set encoder capture plane format. It is necessary to set width and
     // height on the capture plane as well
     ret = ctx->enc->setCapturePlaneFormat(ctx->encoder_pixfmt, ctx->width,
-                                         ctx->height, 2 * 1024 * 1024);
+                                          ctx->height, 2 * 1024 * 1024);
     TEST_ERROR(ret < 0, "Could not set capture plane format", cleanup);
 
     // Set encoder output plane format
@@ -1061,11 +1070,11 @@ int VideoEncoder::encode_proc(int argc, char* argv[])
     if (ctx->enableLossless && ctx->encoder_pixfmt == V4L2_PIX_FMT_H264) {
         ctx->profile = V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_444_PREDICTIVE;
         ret = ctx->enc->setOutputPlaneFormat(V4L2_PIX_FMT_YUV444M, ctx->width,
-                                            ctx->height);
+                                             ctx->height);
     }
     else {
         ret = ctx->enc->setOutputPlaneFormat(ctx->raw_pixfmt, ctx->width,
-                                            ctx->height);
+                                             ctx->height);
     }
     TEST_ERROR(ret < 0, "Could not set output plane format", cleanup);
 
@@ -1115,7 +1124,8 @@ int VideoEncoder::encode_proc(int argc, char* argv[])
     }
 
     if (ctx->slice_length) {
-        ret = ctx->enc->setSliceLength(ctx->slice_length_type, ctx->slice_length);
+        ret =
+            ctx->enc->setSliceLength(ctx->slice_length_type, ctx->slice_length);
         TEST_ERROR(ret < 0, "Could not set slice length params", cleanup);
     }
 
@@ -1177,7 +1187,7 @@ int VideoEncoder::encode_proc(int argc, char* argv[])
         (ctx->nMinQpB != (uint32_t)QP_RETAIN_VAL) ||
         (ctx->nMaxQpB != (uint32_t)QP_RETAIN_VAL)) {
         ret = ctx->enc->setQpRange(ctx->nMinQpI, ctx->nMaxQpI, ctx->nMinQpP,
-                                  ctx->nMaxQpP, ctx->nMinQpB, ctx->nMaxQpB);
+                                   ctx->nMaxQpP, ctx->nMinQpB, ctx->nMaxQpB);
         TEST_ERROR(ret < 0, "Could not set quantization parameters", cleanup);
     }
 
@@ -1247,13 +1257,13 @@ int VideoEncoder::encode_proc(int argc, char* argv[])
     switch (ctx->output_memory_type) {
         case V4L2_MEMORY_MMAP:
             ret = ctx->enc->output_plane.setupPlane(V4L2_MEMORY_MMAP, 10, true,
-                                                   false);
+                                                    false);
             TEST_ERROR(ret < 0, "Could not setup output plane", cleanup);
             break;
 
         case V4L2_MEMORY_USERPTR:
             ret = ctx->enc->output_plane.setupPlane(V4L2_MEMORY_USERPTR, 10,
-                                                   false, true);
+                                                    false, true);
             TEST_ERROR(ret < 0, "Could not setup output plane", cleanup);
             break;
 
@@ -1297,7 +1307,8 @@ int VideoEncoder::encode_proc(int argc, char* argv[])
     else {
         sem_init(&ctx->pollthread_sema, 0, 0);
         sem_init(&ctx->encoderthread_sema, 0, 0);
-        pthread_create(&ctx->enc_pollthread, NULL, encoder_pollthread_fcn, NULL);
+        pthread_create(&ctx->enc_pollthread, NULL, encoder_pollthread_fcn,
+                       NULL);
         pthread_setname_np(ctx->enc_pollthread, "EncPollThread");
         cout << "Created the PollThread and Encoder Thread \n";
     }
@@ -1414,7 +1425,8 @@ int VideoEncoder::encode_proc(int argc, char* argv[])
                         &VEnc_ext_rps_ctrl_params;
 
                     populate_ext_rps_ctrl_Param(
-                        ctx->rps_Param_file, VEnc_imeta_param.VideoEncRPSParams);
+                        ctx->rps_Param_file,
+                        VEnc_imeta_param.VideoEncRPSParams);
                 }
             }
 

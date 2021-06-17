@@ -340,6 +340,4 @@ error:
     return -1;
 }
 
-
-
 }  // namespace GPlayer

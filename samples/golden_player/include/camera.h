@@ -2,7 +2,6 @@
 #define __CAMERA__
 
 class Camera {
-
 };
 
-#endif // __CAMERA__
+#endif  // __CAMERA__

@@ -61,7 +61,12 @@ namespace GPlayer {
 using namespace std;
 
 class VideoDecoder {
+private:
+    VideoDecoder();
+
 public:
+    VideoDecoder(const shared_ptr<VideoDecodeContext_T> context);
+
     int read_decoder_input_nalu(ifstream* stream,
                                 NvBuffer* buffer,
                                 char* parse_buffer,
@@ -102,22 +107,20 @@ public:
 
     void set_defaults();
 
-    bool decoder_proc_nonblocking(
-                                  bool eos,
+    bool decoder_proc_nonblocking(bool eos,
                                   uint32_t current_file,
                                   int current_loop,
                                   char* nalu_parse_buffer);
-    bool decoder_proc_blocking(
-                               bool eos,
+    bool decoder_proc_blocking(bool eos,
                                uint32_t current_file,
                                int current_loop,
                                char* nalu_parse_buffer);
     int decode_proc(int argc, char* argv[]);
-    
+
 private:
     shared_ptr<VideoDecodeContext_T> ctx_;
 };
 
-}; // namespace gplayer
+};  // namespace GPlayer
 
-#endif // __DECODER__
+#endif  // __DECODER__

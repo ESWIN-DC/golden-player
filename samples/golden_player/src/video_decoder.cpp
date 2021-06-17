@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include "NvApplicationProfiler.h"
 #include "NvUtils.h"
 
@@ -54,6 +55,11 @@ namespace GPlayer {
 #define GET_H265_NAL_UNIT_TYPE(buffer_ptr) ((buffer_ptr[0] & 0x7E) >> 1)
 
 using namespace std;
+
+VideoDecoder::VideoDecoder(const shared_ptr<VideoDecodeContext_T> context)
+{
+    ctx_ = context;
+}
 
 int VideoDecoder::read_decoder_input_nalu(ifstream* stream,
                                           NvBuffer* buffer,
