@@ -13,7 +13,9 @@ SRCS := \
 	video_decoder.cpp \
 	video_encoder.cpp \
 	camera_recorder.cpp \
+	camera_v4l2.cpp \
 	display.cpp \
+	display_egl.cpp \
 	pipeline.cpp \
 	$(wildcard $(CLASS_DIR)/*.cpp)
 
@@ -36,8 +38,18 @@ OBJS := $(SRCS:.cpp=.o)
 
 all: $(APP)
 
+OBJS += \
+	$(ALGO_CUDA_DIR)/NvAnalysis.o \
+	$(ALGO_CUDA_DIR)/NvCudaProc.o
+
 $(CLASS_DIR)/%.o: $(CLASS_DIR)/%.cpp
 	$(AT)$(MAKE) -C $(CLASS_DIR)
+
+$(ALGO_CUDA_DIR)/%.o: $(ALGO_CUDA_DIR)/%.cpp
+	$(AT)$(MAKE) -C $(ALGO_CUDA_DIR)
+
+$(ALGO_CUDA_DIR)/%.o: $(ALGO_CUDA_DIR)/%.cu
+	$(AT)$(MAKE) -C $(ALGO_CUDA_DIR)
 
 %.o: %.cpp
 	@echo "Compiling: $<"

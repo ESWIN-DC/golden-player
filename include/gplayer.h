@@ -4,6 +4,7 @@
 
 #include "camera.h"
 #include "camera_recorder.h"
+#include "camera_v4l2.h"
 #include "context.h"
 #include "pipeline.h"
 #include "video_decoder.h"

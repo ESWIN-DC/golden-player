@@ -3,11 +3,43 @@
 
 #include <spdlog/spdlog.h>
 
-#define GP_ERROR(_file, _func, _line, _str, ...)                           \
-    do {                                                                   \
-        spdlog::error("Error generated. {}, {}:{} ", _file, _func, _line); \
-        spdlog::error(_str, ##__VA_ARGS__);                                \
-        spdlog::error("\n");                                               \
+#define INFO(fmt, ...)                                                         \
+    if (ctx->enable_verbose)                                                   \
+        SPDLOG_INFO("INFO: {}(): (line:{}) " fmt "\n", __FUNCTION__, __LINE__, \
+                    ##__VA_ARGS__);
+
+#define WARN(fmt, ...)                                                     \
+    SPDLOG_WARN("WARN: {}(): (line:{}) " fmt "\n", __FUNCTION__, __LINE__, \
+                ##__VA_ARGS__);
+
+#define CHECK_ERROR_ABORT(expr)                  \
+    do {                                         \
+        if ((expr) < 0) {                        \
+            abort();                             \
+            GP_ORIGINATE_ERROR(#expr " failed"); \
+        }                                        \
+    } while (0);
+
+#define CHECK_ERROR(cond, label, fmt, ...)                             \
+    if (!cond) {                                                       \
+        error = 1;                                                     \
+        SPDLOG_ERROR("ERROR: {}(): (line:{}) " fmt "\n", __FUNCTION__, \
+                     __LINE__, ##__VA_ARGS__);                         \
+        goto label;                                                    \
+    }
+
+#define ERROR_RETURN(fmt, ...)                                         \
+    do {                                                               \
+        SPDLOG_ERROR("ERROR: {}(): (line:{}) " fmt "\n", __FUNCTION__, \
+                     __LINE__, ##__VA_ARGS__);                         \
+        return false;                                                  \
+    } while (0)
+
+#define GP_ERROR(_file, _func, _line, _str, ...)                          \
+    do {                                                                  \
+        SPDLOG_ERROR("Error generated. {}, {}:{} ", _file, _func, _line); \
+        SPDLOG_ERROR(_str, ##__VA_ARGS__);                                \
+        SPDLOG_ERROR("\n");                                               \
     } while (0)
 
 /**

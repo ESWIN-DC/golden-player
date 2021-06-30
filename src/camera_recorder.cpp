@@ -68,7 +68,8 @@ bool ConsumerThread::threadInitialize()
         v4l2_buf.index = i;
         v4l2_buf.m.planes = planes;
 
-        CHECK_ERROR(m_VideoEncoder->capture_plane.qBuffer(v4l2_buf, NULL));
+        CHECK_ERROR_ABORT(
+            m_VideoEncoder->capture_plane.qBuffer(v4l2_buf, NULL));
     }
 
     return true;
@@ -92,7 +93,8 @@ bool ConsumerThread::threadExecute()
         Buffer* buffer = stream->acquireBuffer();
         // Convert Argus::Buffer to DmaBuffer and queue into v4l2 encoder
         DmaBuffer* dmabuf = DmaBuffer::fromArgusBuffer(buffer);
-        CHECK_ERROR(m_VideoEncoder->output_plane.qBuffer(v4l2_buf, dmabuf));
+        CHECK_ERROR_ABORT(
+            m_VideoEncoder->output_plane.qBuffer(v4l2_buf, dmabuf));
     }
 
     // Keep acquire frames and queue into encoder
@@ -100,7 +102,7 @@ bool ConsumerThread::threadExecute()
         NvBuffer* share_buffer;
 
         // Dequeue from encoder first.
-        CHECK_ERROR(m_VideoEncoder->output_plane.dqBuffer(
+        CHECK_ERROR_ABORT(m_VideoEncoder->output_plane.dqBuffer(
             v4l2_buf, NULL, &share_buffer, 10 /*retry*/));
         // Release the frame.
         DmaBuffer* dmabuf = static_cast<DmaBuffer*>(share_buffer);
@@ -155,7 +157,8 @@ bool ConsumerThread::threadExecute()
         }
 
         // Push the frame into V4L2.
-        CHECK_ERROR(m_VideoEncoder->output_plane.qBuffer(v4l2_buf, dmabuf));
+        CHECK_ERROR_ABORT(
+            m_VideoEncoder->output_plane.qBuffer(v4l2_buf, dmabuf));
     }
 
     // Print profile result before EOS to make FPS more accurate
@@ -167,7 +170,7 @@ bool ConsumerThread::threadExecute()
     // Send EOS
     v4l2_buf.m.planes[0].m.fd = -1;
     v4l2_buf.m.planes[0].bytesused = 0;
-    CHECK_ERROR(m_VideoEncoder->output_plane.qBuffer(v4l2_buf, NULL));
+    CHECK_ERROR_ABORT(m_VideoEncoder->output_plane.qBuffer(v4l2_buf, NULL));
 
     // Wait till capture plane DQ Thread finishes
     // i.e. all the capture plane buffers are dequeued

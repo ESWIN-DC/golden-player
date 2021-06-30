@@ -48,13 +48,6 @@ static bool DO_CPU_PROCESS = false;
 // Debug print macros.
 #define PRODUCER_PRINT(...) printf("PRODUCER: " __VA_ARGS__)
 #define CONSUMER_PRINT(...) printf("CONSUMER: " __VA_ARGS__)
-#define CHECK_ERROR(expr)                        \
-    do {                                         \
-        if ((expr) < 0) {                        \
-            abort();                             \
-            GP_ORIGINATE_ERROR(#expr " failed"); \
-        }                                        \
-    } while (0);
 
 static EGLDisplay eglDisplay = EGL_NO_DISPLAY;
 
