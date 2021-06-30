@@ -1,9 +1,8 @@
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <fstream>
 #include <iostream>
+
+#include <spdlog/spdlog.h>
 
 #include "camera_recorder.h"
 #include "dma_buffer.h"
@@ -33,20 +32,20 @@ bool ConsumerThread::threadInitialize()
 {
     // Create Video Encoder
     if (!createVideoEncoder())
-        ORIGINATE_ERROR("Failed to create video m_VideoEncoderoder");
+        GP_ORIGINATE_ERROR("Failed to create video m_VideoEncoderoder");
 
     // Create output file
     m_outputFile = new std::ofstream(OUTPUT_FILENAME.c_str());
     if (!m_outputFile)
-        ORIGINATE_ERROR("Failed to open output file.");
+        GP_ORIGINATE_ERROR("Failed to open output file.");
 
     // Stream on
     int e = m_VideoEncoder->output_plane.setStreamStatus(true);
     if (e < 0)
-        ORIGINATE_ERROR("Failed to stream on output plane");
+        GP_ORIGINATE_ERROR("Failed to stream on output plane");
     e = m_VideoEncoder->capture_plane.setStreamStatus(true);
     if (e < 0)
-        ORIGINATE_ERROR("Failed to stream on capture plane");
+        GP_ORIGINATE_ERROR("Failed to stream on capture plane");
 
     // Set video encoder callback
     m_VideoEncoder->capture_plane.setDQThreadCallback(
@@ -79,7 +78,7 @@ bool ConsumerThread::threadExecute()
 {
     IBufferOutputStream* stream = interface_cast<IBufferOutputStream>(m_stream);
     if (!stream)
-        ORIGINATE_ERROR("Failed to get IBufferOutputStream interface");
+        GP_ORIGINATE_ERROR("Failed to get IBufferOutputStream interface");
 
     struct v4l2_buffer v4l2_buf;
     struct v4l2_plane planes[MAX_PLANES];
@@ -192,7 +191,7 @@ bool ConsumerThread::createVideoEncoder()
 
     m_VideoEncoder = NvVideoEncoder::createVideoEncoder("enc0");
     if (!m_VideoEncoder)
-        ORIGINATE_ERROR("Could not create m_VideoEncoderoder");
+        GP_ORIGINATE_ERROR("Could not create m_VideoEncoderoder");
 
     if (DO_STAT)
         m_VideoEncoder->enableProfiling();
@@ -201,16 +200,16 @@ bool ConsumerThread::createVideoEncoder()
         ENCODER_PIXFMT, STREAM_SIZE.width(), STREAM_SIZE.height(),
         2 * 1024 * 1024);
     if (ret < 0)
-        ORIGINATE_ERROR("Could not set capture plane format");
+        GP_ORIGINATE_ERROR("Could not set capture plane format");
 
     ret = m_VideoEncoder->setOutputPlaneFormat(
         V4L2_PIX_FMT_YUV420M, STREAM_SIZE.width(), STREAM_SIZE.height());
     if (ret < 0)
-        ORIGINATE_ERROR("Could not set output plane format");
+        GP_ORIGINATE_ERROR("Could not set output plane format");
 
     ret = m_VideoEncoder->setBitrate(4 * 1024 * 1024);
     if (ret < 0)
-        ORIGINATE_ERROR("Could not set bitrate");
+        GP_ORIGINATE_ERROR("Could not set bitrate");
 
     if (ENCODER_PIXFMT == V4L2_PIX_FMT_H264) {
         ret = m_VideoEncoder->setProfile(V4L2_MPEG_VIDEO_H264_PROFILE_HIGH);
@@ -219,45 +218,45 @@ bool ConsumerThread::createVideoEncoder()
         ret = m_VideoEncoder->setProfile(V4L2_MPEG_VIDEO_H265_PROFILE_MAIN);
     }
     if (ret < 0)
-        ORIGINATE_ERROR("Could not set m_VideoEncoderoder profile");
+        GP_ORIGINATE_ERROR("Could not set m_VideoEncoderoder profile");
 
     if (ENCODER_PIXFMT == V4L2_PIX_FMT_H264) {
         ret = m_VideoEncoder->setLevel(V4L2_MPEG_VIDEO_H264_LEVEL_5_0);
         if (ret < 0)
-            ORIGINATE_ERROR("Could not set m_VideoEncoderoder level");
+            GP_ORIGINATE_ERROR("Could not set m_VideoEncoderoder level");
     }
 
     ret = m_VideoEncoder->setRateControlMode(V4L2_MPEG_VIDEO_BITRATE_MODE_CBR);
     if (ret < 0)
-        ORIGINATE_ERROR("Could not set rate control mode");
+        GP_ORIGINATE_ERROR("Could not set rate control mode");
 
     ret = m_VideoEncoder->setIFrameInterval(30);
     if (ret < 0)
-        ORIGINATE_ERROR("Could not set I-frame interval");
+        GP_ORIGINATE_ERROR("Could not set I-frame interval");
 
     ret = m_VideoEncoder->setFrameRate(30, 1);
     if (ret < 0)
-        ORIGINATE_ERROR("Could not set m_VideoEncoderoder framerate");
+        GP_ORIGINATE_ERROR("Could not set m_VideoEncoderoder framerate");
 
     ret = m_VideoEncoder->setHWPresetType(V4L2_ENC_HW_PRESET_ULTRAFAST);
     if (ret < 0)
-        ORIGINATE_ERROR("Could not set m_VideoEncoderoder HW Preset");
+        GP_ORIGINATE_ERROR("Could not set m_VideoEncoderoder HW Preset");
 
     // Query, Export and Map the output plane buffers so that we can read
     // raw data into the buffers
     ret = m_VideoEncoder->output_plane.setupPlane(V4L2_MEMORY_DMABUF, 10, true,
                                                   false);
     if (ret < 0)
-        ORIGINATE_ERROR("Could not setup output plane");
+        GP_ORIGINATE_ERROR("Could not setup output plane");
 
     // Query, Export and Map the output plane buffers so that we can write
     // m_VideoEncoderoded data from the buffers
     ret = m_VideoEncoder->capture_plane.setupPlane(V4L2_MEMORY_MMAP, 6, true,
                                                    false);
     if (ret < 0)
-        ORIGINATE_ERROR("Could not setup capture plane");
+        GP_ORIGINATE_ERROR("Could not setup capture plane");
 
-    printf("create video encoder return true\n");
+    spdlog::info("create video encoder return true\n");
     return true;
 }
 
@@ -276,7 +275,8 @@ bool ConsumerThread::encoderCapturePlaneDqCallback(struct v4l2_buffer* v4l2_buf,
 
     if (!v4l2_buf) {
         thiz->abort();
-        ORIGINATE_ERROR("Failed to dequeue buffer from encoder capture plane");
+        GP_ORIGINATE_ERROR(
+            "Failed to dequeue buffer from encoder capture plane");
     }
 
     thiz->m_outputFile->write((char*)buffer->planes[0].data,
@@ -284,7 +284,7 @@ bool ConsumerThread::encoderCapturePlaneDqCallback(struct v4l2_buffer* v4l2_buf,
 
     if (thiz->m_VideoEncoder->capture_plane.qBuffer(*v4l2_buf, NULL) < 0) {
         thiz->abort();
-        ORIGINATE_ERROR("Failed to enqueue buffer to encoder capture plane");
+        GP_ORIGINATE_ERROR("Failed to enqueue buffer to encoder capture plane");
         return false;
     }
 
@@ -316,13 +316,13 @@ bool CameraRecorder::Execute()
     ICameraProvider* iCameraProvider =
         interface_cast<ICameraProvider>(cameraProvider);
     if (!iCameraProvider)
-        ORIGINATE_ERROR("Failed to create CameraProvider");
+        GP_ORIGINATE_ERROR("Failed to create CameraProvider");
 
     // Get the camera devices.
     std::vector<CameraDevice*> cameraDevices;
     iCameraProvider->getCameraDevices(&cameraDevices);
     if (cameraDevices.size() == 0)
-        ORIGINATE_ERROR("No cameras available");
+        GP_ORIGINATE_ERROR("No cameras available");
 
     if (CAMERA_INDEX >= cameraDevices.size()) {
         PRODUCER_PRINT("CAMERA_INDEX out of range. Fall back to 0\n");
@@ -336,7 +336,7 @@ bool CameraRecorder::Execute()
     ICaptureSession* iCaptureSession =
         interface_cast<ICaptureSession>(captureSession);
     if (!iCaptureSession)
-        ORIGINATE_ERROR("Failed to get ICaptureSession interface");
+        GP_ORIGINATE_ERROR("Failed to get ICaptureSession interface");
 
     // Create the OutputStream.
     PRODUCER_PRINT("Creating output stream\n");
@@ -345,7 +345,8 @@ bool CameraRecorder::Execute()
     IBufferOutputStreamSettings* iStreamSettings =
         interface_cast<IBufferOutputStreamSettings>(streamSettings);
     if (!iStreamSettings)
-        ORIGINATE_ERROR("Failed to get IBufferOutputStreamSettings interface");
+        GP_ORIGINATE_ERROR(
+            "Failed to get IBufferOutputStreamSettings interface");
 
     // Configure the OutputStream to use the EGLImage BufferType.
     iStreamSettings->setBufferType(BUFFER_TYPE_EGL_IMAGE);
@@ -364,7 +365,7 @@ bool CameraRecorder::Execute()
             STREAM_SIZE, NvBufferColorFormat_NV12,
             DO_CPU_PROCESS ? NvBufferLayout_Pitch : NvBufferLayout_BlockLinear);
         if (!nativeBuffers[i])
-            ORIGINATE_ERROR("Failed to allocate NativeBuffer");
+            GP_ORIGINATE_ERROR("Failed to allocate NativeBuffer");
     }
 
     // Create EGLImages from the native buffers.
@@ -372,7 +373,7 @@ bool CameraRecorder::Execute()
     for (uint32_t i = 0; i < NUM_BUFFERS; i++) {
         eglImages[i] = nativeBuffers[i]->createEGLImage(eglDisplay);
         if (eglImages[i] == EGL_NO_IMAGE_KHR)
-            ORIGINATE_ERROR("Failed to create EGLImage");
+            GP_ORIGINATE_ERROR("Failed to create EGLImage");
     }
 
     // Create the BufferSettings object to configure Buffer creation.
@@ -381,7 +382,7 @@ bool CameraRecorder::Execute()
     IEGLImageBufferSettings* iBufferSettings =
         interface_cast<IEGLImageBufferSettings>(bufferSettings);
     if (!iBufferSettings)
-        ORIGINATE_ERROR("Failed to create BufferSettings");
+        GP_ORIGINATE_ERROR("Failed to create BufferSettings");
 
     // Create the Buffers for each EGLImage (and release to stream for initial
     // capture use).
@@ -398,36 +399,36 @@ bool CameraRecorder::Execute()
         nativeBuffers[i]->setArgusBuffer(buffers[i].get());
 
         if (!interface_cast<IEGLImageBuffer>(buffers[i]))
-            ORIGINATE_ERROR("Failed to create Buffer");
+            GP_ORIGINATE_ERROR("Failed to create Buffer");
         if (iBufferOutputStream->releaseBuffer(buffers[i].get()) != STATUS_OK)
-            ORIGINATE_ERROR("Failed to release Buffer for capture use");
+            GP_ORIGINATE_ERROR("Failed to release Buffer for capture use");
     }
 
     // Launch the FrameConsumer thread to consume frames from the OutputStream.
     PRODUCER_PRINT("Launching consumer thread\n");
     ConsumerThread frameConsumerThread(outputStream.get());
-    PROPAGATE_ERROR(frameConsumerThread.initialize());
+    GP_PROPAGATE_ERROR(frameConsumerThread.initialize());
 
     // Wait until the consumer is connected to the stream.
-    PROPAGATE_ERROR(frameConsumerThread.waitRunning());
+    GP_PROPAGATE_ERROR(frameConsumerThread.waitRunning());
 
     // Create capture request and enable output stream.
     UniqueObj<Request> request(iCaptureSession->createRequest());
     IRequest* iRequest = interface_cast<IRequest>(request);
     if (!iRequest)
-        ORIGINATE_ERROR("Failed to create Request");
+        GP_ORIGINATE_ERROR("Failed to create Request");
     iRequest->enableOutputStream(outputStream.get());
 
     ISourceSettings* iSourceSettings =
         interface_cast<ISourceSettings>(iRequest->getSourceSettings());
     if (!iSourceSettings)
-        ORIGINATE_ERROR("Failed to get ISourceSettings interface");
+        GP_ORIGINATE_ERROR("Failed to get ISourceSettings interface");
     iSourceSettings->setFrameDurationRange(Range<uint64_t>(1e9 / DEFAULT_FPS));
 
     // Submit capture requests.
     PRODUCER_PRINT("Starting repeat capture requests.\n");
     if (iCaptureSession->repeat(request.get()) != STATUS_OK)
-        ORIGINATE_ERROR("Failed to start repeat capture request");
+        GP_ORIGINATE_ERROR("Failed to start repeat capture request");
 
     // Wait for CAPTURE_TIME seconds.
     for (int i = 0; i < CAPTURE_TIME && !frameConsumerThread.isInError(); i++)
@@ -439,7 +440,7 @@ bool CameraRecorder::Execute()
     iCaptureSession->waitForIdle();
 
     // Wait for the consumer thread to complete.
-    PROPAGATE_ERROR(frameConsumerThread.shutdown());
+    GP_PROPAGATE_ERROR(frameConsumerThread.shutdown());
 
     // Destroy the output stream to end the consumer thread.
     outputStream.reset();
@@ -524,6 +525,8 @@ bool CameraRecorder::parseCmdline(int argc, char** argv)
 
 int CameraRecorder::main(int argc, char* argv[])
 {
+    spdlog::info("Start camera...\n");
+
     if (!parseCmdline(argc, argv)) {
         printHelp();
         return EXIT_FAILURE;
@@ -535,7 +538,7 @@ int CameraRecorder::main(int argc, char* argv[])
     // Get default EGL display
     eglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     if (eglDisplay == EGL_NO_DISPLAY) {
-        printf("Cannot get EGL display.\n");
+        spdlog::error("Cannot get EGL display.\n");
         return EXIT_FAILURE;
     }
 

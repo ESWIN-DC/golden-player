@@ -60,8 +60,9 @@ LDFLAGS += \
 endif
 
 # All common header files
-CPPFLAGS += -std=c++11 \
+CPPFLAGS += -std=c++14 \
 	-fPIC \
+	-I"$(TOP_DIR)/third_party/spdlog/include" \
 	-I"$(TOP_DIR)/third_party/tegra_multimedia_api-R32.2.3/include" \
 	-I"$(TOP_DIR)/third_party/tegra_multimedia_api-R32.2.3/include/libjpeg-8b" \
 	-I"$(ALGO_CUDA_DIR)" \
@@ -79,4 +80,5 @@ LDFLAGS += \
 	-lnvinfer -lnvparsers \
 	-L"$(TARGET_ROOTFS)/$(CUDA_PATH)/lib64" \
 	-L"$(TARGET_ROOTFS)/usr/lib/$(TEGRA_ARMABI)" \
-	-L"$(TARGET_ROOTFS)/usr/lib/$(TEGRA_ARMABI)/tegra"
+	-L"$(TARGET_ROOTFS)/usr/lib/$(TEGRA_ARMABI)/tegra" \
+	-L"$(TARGET_ROOTFS)/usr/lib/$(TEGRA_ARMABI)/tegra-egl"

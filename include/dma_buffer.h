@@ -1,4 +1,4 @@
-#ifndef __DMABUFFER__Class
+#ifndef __DMABUFFER__
 #define __DMABUFFER__
 
 #include "nvmmapi/NvNativeBuffer.h"

@@ -5,7 +5,6 @@
 #include <fcntl.h>
 #include <linux/videodev2.h>
 #include <malloc.h>
-#include <nvbuf_utils.h>
 #include <poll.h>
 #include <pthread.h>
 #include <string.h>
@@ -14,12 +13,13 @@
 #include <iostream>
 #include <memory>
 
+#include <nvbuf_utils.h>
+
 #include "NvApplicationProfiler.h"
 #include "NvUtils.h"
 
 #include "context.h"
 #include "gplayer.h"
-#include "nvbuf_utils.h"
 #include "task.h"
 
 #define TEST_ERROR(cond, str, label) \

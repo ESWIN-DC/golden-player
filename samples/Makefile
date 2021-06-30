@@ -9,8 +9,10 @@ CPPFLAGS += \
 	-I"$(TOP_DIR)/include"
 
 LDFLAGS += \
-	-L"../src" \
-	-lgplayer
+	-L"$(TOP_DIR)/src" \
+	-L"$(TOP_DIR)/third_party/spdlog/build" \
+	-lgplayer \
+	-lspdlog
 
 LDFLAGS += \
 	-lnveglstream_camconsumer -lnvargus_socketclient	

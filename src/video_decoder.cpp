@@ -11,11 +11,13 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+
+#include <spdlog/spdlog.h>
+
 #include "NvApplicationProfiler.h"
 #include "NvUtils.h"
 
 #include "gplayer.h"
-#include "nvbuf_utils.h"
 
 namespace GPlayer {
 
@@ -335,7 +337,6 @@ int VideoDecoder::report_input_metadata(
 }
 
 void VideoDecoder::report_metadata(
-
     v4l2_ctrl_videodec_outputbuf_metadata* metadata)
 {
     uint32_t frame_num = ctx_->dec->capture_plane.getTotalDequeuedBuffers() - 1;
@@ -1482,7 +1483,7 @@ int VideoDecoder::decode_proc(int argc, char* argv[])
 
     if (ctx_->input_nalu) {
         nalu_parse_buffer = new char[CHUNK_SIZE];
-        printf("Setting frame input mode to 0 \n");
+        spdlog::info("Setting frame input mode to 0 \n");
         ret = ctx_->dec->setFrameInputMode(0);
         TEST_ERROR(ret < 0, "Error in decoder setFrameInputMode", cleanup);
     }
@@ -1490,7 +1491,7 @@ int VideoDecoder::decode_proc(int argc, char* argv[])
         // Set V4L2_CID_MPEG_VIDEO_DISABLE_COMPLETE_FRAME_INPUT control to false
         // so that application can send chunks of encoded data instead of
         // forming complete frames.
-        printf("Setting frame input mode to 1 \n");
+        spdlog::info("Setting frame input mode to 1 \n");
         ret = ctx_->dec->setFrameInputMode(1);
         TEST_ERROR(ret < 0, "Error in decoder setFrameInputMode", cleanup);
     }

@@ -25,18 +25,17 @@ int main(int argc, char* argv[])
     shared_ptr<VideoEncoder> encoder = std::make_shared<VideoEncoder>(econtext);
     shared_ptr<CameraRecorder> recorder = std::make_shared<CameraRecorder>();
 
-    ret = decoder->decode_proc(argc, argv);
-    ret = encoder->encode_proc(argc, argv);
+    // ret = decoder->decode_proc(argc, argv);
+    // ret = encoder->encode_proc(argc, argv);
 
-    recorder->parseCmdline(argc, argv);
-    recorder->Execute();
+    recorder->main(argc, argv);
 
     Pipeline* pipeline = new Pipeline();
     pipeline->Add(recorder);
     pipeline->Add(encoder);
     pipeline->Add(decoder);
 
-    pipeline->Run();
+    // pipeline->Run();
 
     if (ret) {
         cout << "App run failed" << endl;

@@ -8,6 +8,8 @@
 #include <fstream>
 #include <iostream>
 
+#include <spdlog/spdlog.h>
+
 #include "Error.h"
 #include "Thread.h"
 #include "nvmmapi/NvNativeBuffer.h"
@@ -27,7 +29,7 @@ bool GPDisplay::Create()
     // Get default EGL display
     eglDisplay_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     if (eglDisplay_ == EGL_NO_DISPLAY) {
-        printf("Cannot get EGL display.\n");
+        spdlog::error("Cannot get EGL display.\n");
         return false;
     }
 

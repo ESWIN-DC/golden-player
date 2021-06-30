@@ -1,3 +1,5 @@
+#include <thread>
+
 #include "pipeline.h"
 
 namespace GPlayer {
@@ -20,8 +22,11 @@ bool Pipeline::Tee(const std::shared_ptr<ITask>& task)
     return true;
 }
 
-bool Pipeline::Run()
+bool Pipeline::Execute()
 {
+    std::thread thread;
+    thread.join();
+
     return true;
 }
 

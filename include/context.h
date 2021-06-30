@@ -1,6 +1,6 @@
 
-#ifndef __COMMON__
-#define __COMMON__
+#ifndef __CONTEXT__
+#define __CONTEXT__
 
 #include <pthread.h>
 #include <semaphore.h>
@@ -223,4 +223,4 @@ int parse_csv_args(VideoEncodeContext_T* ctx, int argc, char* argv[]);
 
 };  // namespace GPlayer
 
-#endif  // __COMMON__
+#endif  // __CONTEXT__

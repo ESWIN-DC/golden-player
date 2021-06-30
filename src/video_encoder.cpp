@@ -9,7 +9,8 @@
 #include <sstream>
 #include <utility>
 #include "NvUtils.h"
-#include "nvbuf_utils.h"
+
+#include <nvbuf_utils.h>
 
 #include "video_encoder.h"
 

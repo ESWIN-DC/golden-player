@@ -17,6 +17,7 @@ SRCS := \
 	pipeline.cpp \
 	$(wildcard $(CLASS_DIR)/*.cpp)
 
+# argus_camera.cpp \
 
 ARGUS_UTILS_DIR := $(TOP_DIR)/third_party/tegra_multimedia_api-R32.2.3/argus/samples/utils
 

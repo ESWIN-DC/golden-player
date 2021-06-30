@@ -1,5 +1,3 @@
-
-
 #ifndef __VIDEOENCODER_H__
 #define __VIDEOENCODER_H__
 
@@ -14,10 +12,12 @@
 #include <memory>
 #include <sstream>
 
+#include <nvbuf_utils.h>
+
 #include "NvUtils.h"
 #include "context.h"
 #include "gplayer.h"
-#include "nvbuf_utils.h"
+
 #include "task.h"
 
 #include "NvVideoEncoder.h"
