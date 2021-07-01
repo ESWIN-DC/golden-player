@@ -10,6 +10,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <new>
 
 #include "camera_v4l2.h"
 #include "gp_error.h"
@@ -612,6 +613,13 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
                         ERROR_RETURN("Failed to clear chroma");
                 }
             }
+
+            if (handler_) {
+                GPBuffer gpbuffer(ctx->g_buff[v4l2_buf.index].start,
+                                  (ctx->cam_w * ctx->cam_h * 8));
+                handler_->Process(&gpbuffer);
+            }
+
             cuda_postprocess(ctx, ctx->render_dmabuf_fd);
 
             ctx->renderer->render(ctx->render_dmabuf_fd);
@@ -644,6 +652,43 @@ bool CameraV4l2::stop_stream(v4l2_context_t* ctx)
 
     INFO("Camera video streaming off ...");
     return true;
+}
+
+void CameraV4l2::Process(GPBuffer* buffer)
+{
+    main(0, NULL);
+}
+
+// bool CameraV4l2::ReadFrame(NvBuffer& buffer)
+// {
+//     uint32_t i, j;
+//     char* data;
+
+//     for (i = 0; i < buffer.n_planes; i++) {
+//         NvBuffer::NvBufferPlane& plane = buffer.planes[i];
+//         std::streamsize bytes_to_read =
+//             plane.fmt.bytesperpixel * plane.fmt.width;
+//         data = (char*)plane.data;
+//         plane.bytesused = 0;
+//         for (j = 0; j < plane.fmt.height; j++) {
+//             stream->read(data, bytes_to_read);
+//             if (stream->gcount() < bytes_to_read)
+//                 return false;
+//             data += plane.fmt.stride;
+//         }
+//         plane.bytesused = plane.fmt.stride * plane.fmt.height;
+//     }
+
+//     return true;
+// }
+void CameraV4l2::AddBufferReadHandler(std::function<bool(int)> callback)
+{
+    OnBufferRead_ = callback;
+}
+
+void CameraV4l2::AddHandler(IModule* module)
+{
+    handler_ = module;
 }
 
 int CameraV4l2::main(int argc, char* argv[])

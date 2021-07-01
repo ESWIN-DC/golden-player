@@ -3,6 +3,7 @@
 #ifndef __CAMERA_V4L2__
 #define __CAMERA_V4L2__
 
+#include <functional>
 #include <queue>
 
 #include "NvCudaProc.h"
@@ -13,6 +14,8 @@
 #include "NvJpegDecoder.h"
 
 #include "module.h"
+
+#include "video_encoder.h"
 
 namespace GPlayer {
 
@@ -66,7 +69,7 @@ typedef struct {
     NvBufferColorFormat nvbuff_color;
 } nv_color_fmt;
 
-class CameraV4l2: public IModule {
+class CameraV4l2 : public IModule {
 private:
     std::vector<nv_color_fmt> nvcolor_fmt_;
 
@@ -85,6 +88,8 @@ public:
     }
 
     std::string GetInfo() const;
+    void AddHandler(IModule* module);
+    void Process(GPBuffer* buffer);
     void print_usage(void);
     bool parse_cmdline(v4l2_context_t* ctx, int argc, char** argv);
     void set_defaults(v4l2_context_t* ctx);
@@ -103,7 +108,16 @@ public:
     bool cuda_postprocess(v4l2_context_t* ctx, int fd);
     bool start_capture(v4l2_context_t* ctx);
     bool stop_stream(v4l2_context_t* ctx);
+    // bool ReadFrame(NvBuffer& buffer);
+
+    void AddBufferReadHandler(std::function<bool(int)> callback);
+
     int main(int argc, char* argv[]);
+
+private:
+    std::function<bool(int)> OnBufferRead_;
+    // std::function<bool(NvBuffer *buffer)> OnBufferRead_;
+    IModule* handler_;
 };
 
 }  // namespace GPlayer

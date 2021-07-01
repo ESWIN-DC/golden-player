@@ -14,8 +14,8 @@
 #include "gp_error.h"
 
 #include "Thread.h"
-#include "nvmmapi/NvNativeBuffer.h"
 #include "module.h"
+#include "nvmmapi/NvNativeBuffer.h"
 
 using namespace Argus;
 using namespace ArgusSamples;
@@ -91,7 +91,8 @@ private:
 class CameraRecorder : public IModule {
 public:
     std::string GetInfo() const;
-
+    void AddHandler(IModule* module);
+    void Process(GPBuffer* buffer);
     /*******************************************************************************
      * Argus Producer thread:
      *   Opens the Argus camera driver, creates an BufferOutputStream to output

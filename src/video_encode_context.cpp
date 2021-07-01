@@ -308,8 +308,8 @@ int parse_csv_args(VideoEncodeContext_T* ctx, int argc, char* argv[])
 
     CSV_PARSE_CHECK_ERROR(argc < 6, "Insufficient arguments");
 
-    ctx->in_file_path = strdup(*argp);
-    CSV_PARSE_CHECK_ERROR(!ctx->in_file_path, "Input file not specified");
+    // ctx->in_file_path = strdup(*argp);
+    // CSV_PARSE_CHECK_ERROR(!ctx->in_file_path, "Input file not specified");
 
     ctx->width = atoi(*(++argp));
     CSV_PARSE_CHECK_ERROR(ctx->width == 0, "Input width should be > 0");
@@ -320,8 +320,8 @@ int parse_csv_args(VideoEncodeContext_T* ctx, int argc, char* argv[])
     ctx->encoder_pixfmt = get_encoder_type(*(++argp));
     CSV_PARSE_CHECK_ERROR(ctx->encoder_pixfmt == 0, "Incorrect encoder type");
 
-    ctx->out_file_path = strdup(*(++argp));
-    CSV_PARSE_CHECK_ERROR(!ctx->out_file_path, "Output file not specified");
+    // ctx->out_file_path = strdup(*(++argp));
+    // CSV_PARSE_CHECK_ERROR(!ctx->out_file_path, "Output file not specified");
 
     while ((arg = *(++argp))) {
         if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) {
@@ -705,7 +705,9 @@ int parse_csv_args(VideoEncodeContext_T* ctx, int argc, char* argv[])
             ctx->blocking_mode = atoi(*argp);
         }
         else {
-            CSV_PARSE_CHECK_ERROR(ctx->out_file_path, "Unknown option " << arg);
+            // remove out_file_path
+            // CSV_PARSE_CHECK_ERROR(ctx->out_file_path, "Unknown option " <<
+            // arg);
         }
     }
 

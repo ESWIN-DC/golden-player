@@ -305,6 +305,10 @@ std::string CameraRecorder::GetInfo() const
     return "CameraRecorder";
 }
 
+void CameraRecorder::AddHandler(IModule* module) {}
+
+void CameraRecorder::Process(GPBuffer* buffer) {}
+
 /*******************************************************************************
  * Argus Producer thread:
  *   Opens the Argus camera driver, creates an BufferOutputStream to output

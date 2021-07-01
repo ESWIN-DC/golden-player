@@ -35,6 +35,7 @@ namespace GPlayer {
 using namespace std;
 
 VideoEncoder::VideoEncoder(const shared_ptr<VideoEncodeContext_T> context)
+    : handler_(nullptr)
 {
     ctx_ = context;
 }
@@ -42,6 +43,20 @@ VideoEncoder::VideoEncoder(const shared_ptr<VideoEncodeContext_T> context)
 std::string VideoEncoder::GetInfo() const
 {
     return "VideoEncoder";
+}
+
+void VideoEncoder::AddHandler(IModule* module)
+{
+    handler_ = module;
+}
+
+void VideoEncoder::Process(GPBuffer* buffer)
+{
+    std::lock_guard<std::mutex> guard(frames_mutex_);
+
+    frames_.push_back(buffer);
+
+    sem_post(&ctx_->pollthread_sema);
 }
 
 void VideoEncoder::Abort()
@@ -97,7 +112,12 @@ bool VideoEncoder::encoder_capture_plane_dq_callback(
         videoEncoder->CalculateCrc(ctx->pBitStreamCrc, buffer->planes[0].data,
                                    buffer->planes[0].bytesused);
 
-    videoEncoder->write_encoder_output_frame(ctx->out_file, buffer);
+    // videoEncoder->write_encoder_output_frame(ctx->out_file, buffer);
+    if (videoEncoder->handler_) {
+        GPBuffer gpbuffer(buffer->planes[0].data, buffer->planes[0].bytesused);
+        videoEncoder->handler_->Process(&gpbuffer);
+    }
+
     num_encoded_frames++;
 
     // Accounting for the first frame as it is only sps+pps
@@ -627,7 +647,8 @@ int VideoEncoder::encoder_proc_nonblocking(bool eos)
                 if (ctx->runtime_params_str)
                     get_next_runtime_param_change_frame();
             }
-            if (read_video_frame(ctx->in_file, *outplane_buffer) < 0) {
+            // if (read_video_frame(ctx->in_file, *outplane_buffer) < 0) {
+            if (ReadFrame(*outplane_buffer) < 0) {
                 cerr << "Could not read complete frame from input file" << endl;
                 v4l2_output_buf.m.planes[0].bytesused = 0;
                 if (ctx->b_use_enc_cmd) {
@@ -823,7 +844,7 @@ int VideoEncoder::encoder_proc_blocking(bool eos)
         v4l2_buf.m.planes = planes;
 
         if (ctx->enc->output_plane.dqBuffer(v4l2_buf, &buffer, NULL, 10) < 0) {
-            cerr << "ERROR while DQing buffer at output plane" << endl;
+            SPDLOG_ERROR("ERROR while DQing buffer at output plane\n");
             Abort();
             goto cleanup;
         }
@@ -834,8 +855,9 @@ int VideoEncoder::encoder_proc_blocking(bool eos)
             if (ctx->runtime_params_str)
                 get_next_runtime_param_change_frame();
         }
-        if (read_video_frame(ctx->in_file, *buffer) < 0) {
-            cerr << "Could not read complete frame from input file" << endl;
+        // if (read_video_frame(ctx->in_file, *buffer) < 0) {
+        if (ReadFrame(*buffer) < 0) {
+            SPDLOG_ERROR("Could not read complete frame from input file\n");
             v4l2_buf.m.planes[0].bytesused = 0;
             if (ctx->b_use_enc_cmd) {
                 ret = ctx->enc->setEncoderCommand(V4L2_ENC_CMD_STOP, 1);
@@ -973,7 +995,7 @@ cleanup:
     return -1;
 }
 
-int VideoEncoder::encode_proc(int argc, char* argv[])
+int VideoEncoder::load_settings(int argc, char* argv[])
 {
     VideoEncodeContext_T* ctx = ctx_.get();
     int ret = 0;
@@ -1003,12 +1025,13 @@ int VideoEncoder::encode_proc(int argc, char* argv[])
         TEST_ERROR(!ctx->pBitStreamCrc, "InitCrc failed", cleanup);
     }
 
-    ctx->in_file = new ifstream(ctx->in_file_path);
-    TEST_ERROR(!ctx->in_file->is_open(), "Could not open input file", cleanup);
+    // ctx->in_file = new ifstream(ctx->in_file_path);
+    // TEST_ERROR(!ctx->in_file->is_open(), "Could not open input file",
+    // cleanup);
 
-    ctx->out_file = new ofstream(ctx->out_file_path);
-    TEST_ERROR(!ctx->out_file->is_open(), "Could not open output file",
-               cleanup);
+    // ctx->out_file = new ofstream(ctx->out_file_path);
+    // TEST_ERROR(!ctx->out_file->is_open(), "Could not open output file",
+    //            cleanup);
 
     if (ctx->ROI_Param_file_path) {
         ctx->roi_Param_file = new ifstream(ctx->ROI_Param_file_path);
@@ -1316,8 +1339,105 @@ int VideoEncoder::encode_proc(int argc, char* argv[])
         pthread_create(&ctx->enc_pollthread, NULL, encoder_pollthread_fcn,
                        NULL);
         pthread_setname_np(ctx->enc_pollthread, "EncPollThread");
-        cout << "Created the PollThread and Encoder Thread \n";
+        SPDLOG_INFO("Created the PollThread and Encoder Thread\n");
     }
+
+    // encode process
+
+cleanup:
+    if (ctx->enc && ctx->enc->isInError()) {
+        cerr << "Encoder is in error" << endl;
+        error = 1;
+    }
+    if (ctx->got_error) {
+        error = 1;
+    }
+
+    if (ctx->pBitStreamCrc) {
+        char* pgold_crc = ctx->gold_crc;
+        Crc* pout_crc = ctx->pBitStreamCrc;
+        char StrCrcValue[20];
+        snprintf(StrCrcValue, 20, "%u", pout_crc->CrcValue);
+        // Remove CRLF from end of CRC, if present
+        do {
+            unsigned int len = strlen(pgold_crc);
+            if (len == 0)
+                break;
+            if (pgold_crc[len - 1] == '\n')
+                pgold_crc[len - 1] = '\0';
+            else if (pgold_crc[len - 1] == '\r')
+                pgold_crc[len - 1] = '\0';
+            else
+                break;
+        } while (1);
+
+        if (strcmp(StrCrcValue, pgold_crc)) {
+            cout << "======================" << endl;
+            cout << "video_encode: CRC FAILED" << endl;
+            cout << "======================" << endl;
+            cout << "Encoded CRC: " << StrCrcValue << " Gold CRC: " << pgold_crc
+                 << endl;
+            error = 1;
+        }
+        else {
+            cout << "======================" << endl;
+            cout << "video_encode: CRC PASSED" << endl;
+            cout << "======================" << endl;
+        }
+
+        CloseCrc(&ctx->pBitStreamCrc);
+    }
+
+    if (ctx->output_memory_type == V4L2_MEMORY_DMABUF) {
+        for (uint32_t i = 0; i < ctx->enc->output_plane.getNumBuffers(); i++) {
+            ret = ctx->enc->output_plane.unmapOutputBuffers(
+                i, ctx->output_plane_fd[i]);
+            if (ret < 0) {
+                cerr << "Error while unmapping buffer at output plane" << endl;
+                goto cleanup;
+            }
+
+            ret = NvBufferDestroy(ctx->output_plane_fd[i]);
+            if (ret < 0) {
+                cerr << "Failed to Destroy NvBuffer\n" << endl;
+                return ret;
+            }
+        }
+    }
+
+    delete ctx->enc;
+    // delete ctx->in_file;
+    // delete ctx->out_file;
+    delete ctx->roi_Param_file;
+    delete ctx->recon_Ref_file;
+    delete ctx->rps_Param_file;
+    delete ctx->hints_Param_file;
+    delete ctx->gdr_Param_file;
+    delete ctx->gdr_out_file;
+
+    // free(ctx->in_file_path);
+    // free(ctx->out_file_path);
+    free(ctx->ROI_Param_file_path);
+    free(ctx->Recon_Ref_file_path);
+    free(ctx->RPS_Param_file_path);
+    free(ctx->hints_Param_file_path);
+    free(ctx->GDR_Param_file_path);
+    free(ctx->GDR_out_file_path);
+    delete ctx->runtime_params_str;
+
+    if (!ctx->blocking_mode) {
+        sem_destroy(&ctx->pollthread_sema);
+        sem_destroy(&ctx->encoderthread_sema);
+    }
+    return -error;
+}
+
+int VideoEncoder::encode_proc(GPBuffer* buffer)
+{
+    VideoEncodeContext_T* ctx = ctx_.get();
+    int ret = 0;
+    int error = 0;
+    bool eos = false;
 
     // Enqueue all the empty capture plane buffers
     for (uint32_t i = 0; i < ctx->enc->capture_plane.getNumBuffers(); i++) {
@@ -1363,14 +1483,18 @@ int VideoEncoder::encode_proc(int argc, char* argv[])
                 v4l2_buf, ctx->output_plane_fd[i]);
 
             if (ret < 0) {
-                cerr << "Error while mapping buffer at output plane" << endl;
+                SPDLOG_ERROR("Error while mapping buffer at output plane");
                 Abort();
                 goto cleanup;
             }
         }
 
-        if (read_video_frame(ctx->in_file, *buffer) < 0) {
-            cerr << "Could not read complete frame from input file" << endl;
+        // buffer
+
+        // if (read_video_frame(ctx->in_file, *buffer) < 0) {
+        if (ReadFrame(*buffer) < 0) {
+            SPDLOG_ERROR("Could not read complete frame from input file");
+
             v4l2_buf.m.planes[0].bytesused = 0;
             if (ctx->b_use_enc_cmd) {
                 ret = ctx->enc->setEncoderCommand(V4L2_ENC_CMD_STOP, 1);
@@ -1483,9 +1607,9 @@ int VideoEncoder::encode_proc(int argc, char* argv[])
                 ret = NvBufferMemSyncForDevice(buffer->planes[j].fd, j,
                                                (void**)&buffer->planes[j].data);
                 if (ret < 0) {
-                    cerr << "Error while NvBufferMemSyncForDevice at output "
-                            "plane for V4L2_MEMORY_DMABUF"
-                         << endl;
+                    SPDLOG_ERROR(
+                        "Error while NvBufferMemSyncForDevice at output "
+                        "plane for V4L2_MEMORY_DMABUF");
                     Abort();
                     goto cleanup;
                 }
@@ -1499,13 +1623,13 @@ int VideoEncoder::encode_proc(int argc, char* argv[])
         }
         ret = ctx->enc->output_plane.qBuffer(v4l2_buf, NULL);
         if (ret < 0) {
-            cerr << "Error while queueing buffer at output plane" << endl;
+            SPDLOG_ERROR("Error while queueing buffer at output plane\n");
             Abort();
             goto cleanup;
         }
 
         if (v4l2_buf.m.planes[0].bytesused == 0) {
-            cerr << "File read complete." << endl;
+            SPDLOG_ERROR("File read complete.");
             eos = true;
             break;
         }
@@ -1526,7 +1650,7 @@ int VideoEncoder::encode_proc(int argc, char* argv[])
 
 cleanup:
     if (ctx->enc && ctx->enc->isInError()) {
-        cerr << "Encoder is in error" << endl;
+        SPDLOG_ERROR("Encoder is in error");
         error = 1;
     }
     if (ctx->got_error) {
@@ -1586,8 +1710,8 @@ cleanup:
     }
 
     delete ctx->enc;
-    delete ctx->in_file;
-    delete ctx->out_file;
+    // delete ctx->in_file;
+    // delete ctx->out_file;
     delete ctx->roi_Param_file;
     delete ctx->recon_Ref_file;
     delete ctx->rps_Param_file;
@@ -1595,8 +1719,8 @@ cleanup:
     delete ctx->gdr_Param_file;
     delete ctx->gdr_out_file;
 
-    free(ctx->in_file_path);
-    free(ctx->out_file_path);
+    // free(ctx->in_file_path);
+    // free(ctx->out_file_path);
     free(ctx->ROI_Param_file_path);
     free(ctx->Recon_Ref_file_path);
     free(ctx->RPS_Param_file_path);
@@ -1610,6 +1734,35 @@ cleanup:
         sem_destroy(&ctx->encoderthread_sema);
     }
     return -error;
+}
+
+int VideoEncoder::ReadFrame(NvBuffer& buffer)
+{
+    uint32_t i, j;
+    char* data;
+
+    for (i = 0; i < buffer.n_planes; i++) {
+        NvBuffer::NvBufferPlane& plane = buffer.planes[i];
+        std::streamsize bytes_to_read =
+            plane.fmt.bytesperpixel * plane.fmt.width;
+        data = (char*)plane.data;
+        plane.bytesused = 0;
+        for (j = 0; j < plane.fmt.height; j++) {
+            std::lock_guard<std::mutex> guard(frames_mutex_);
+            if (!frames_.empty()) {
+                GPBuffer* gbf = frames_.front();
+                if (gbf->GetLength() < bytes_to_read) {
+                    return -1;
+                }
+                std::memcpy(data, gbf->GetData(), bytes_to_read);
+                frames_.pop_back();
+            }
+
+            data += plane.fmt.stride;
+        }
+        plane.bytesused = plane.fmt.stride * plane.fmt.height;
+    }
+    return 0;
 }
 
 }  // namespace GPlayer

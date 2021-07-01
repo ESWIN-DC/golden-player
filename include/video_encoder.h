@@ -50,6 +50,8 @@ public:
     VideoEncoder(const shared_ptr<VideoEncodeContext_T> context);
 
     std::string GetInfo() const;
+    void AddHandler(IModule* module);
+    void Process(GPBuffer* buffer);
 
     void Abort();
 
@@ -120,6 +122,7 @@ public:
     {
         stream->write((char*)buffer->planes[0].data,
                       buffer->planes[0].bytesused);
+
         return 0;
     }
 
@@ -155,10 +158,16 @@ public:
     int encoder_proc_nonblocking(bool eos);
     int encoder_proc_blocking(bool eos);
 
-    int encode_proc(int argc, char* argv[]);
+    int load_settings(int argc, char* argv[]);
+    int encode_proc(GPBuffer* buffer);
+
+    int ReadFrame(NvBuffer& buffer);
 
 private:
     shared_ptr<VideoEncodeContext_T> ctx_;
+    IModule* handler_;
+    std::vector<GPBuffer*> frames_;
+    std::mutex frames_mutex_;
 };  // class VideoEncoder
 
 }  // namespace GPlayer

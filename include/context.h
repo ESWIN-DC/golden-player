@@ -109,14 +109,14 @@ typedef struct : public context_t {
     uint32_t encoder_pixfmt;
     uint32_t raw_pixfmt;
 
-    char* in_file_path;
-    std::ifstream* in_file;
+    // char* in_file_path;
+    // std::ifstream* in_file;
 
     uint32_t width;
     uint32_t height;
 
-    char* out_file_path;
-    std::ofstream* out_file;
+    // char* out_file_path;
+    // std::ofstream* out_file;
 
     char* ROI_Param_file_path;
     char* Recon_Ref_file_path;

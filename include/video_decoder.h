@@ -70,6 +70,9 @@ public:
 
     std::string GetInfo() const;
 
+    void AddHandler(IModule* module);
+    void Process(GPBuffer* buffer);
+
     int read_decoder_input_nalu(ifstream* stream,
                                 NvBuffer* buffer,
                                 char* parse_buffer,
