@@ -15,7 +15,7 @@
 
 #include "Thread.h"
 #include "nvmmapi/NvNativeBuffer.h"
-#include "task.h"
+#include "module.h"
 
 using namespace Argus;
 using namespace ArgusSamples;
@@ -88,7 +88,7 @@ private:
     bool m_gotError;
 };
 
-class CameraRecorder : public ITask {
+class CameraRecorder : public IModule {
 public:
     std::string GetInfo() const;
 

@@ -27,12 +27,13 @@ int main(int argc, char* argv[])
     shared_ptr<CameraV4l2> v4l2 = std::make_shared<CameraV4l2>();
 
     // ret = decoder->decode_proc(argc, argv);
-    // ret = encoder->encode_proc(argc, argv);
+    ret = encoder->encode_proc(argc, argv);
 
     // recorder->main(argc, argv);
-    ret = v4l2->main(argc, argv);
+    // ret = v4l2->main(argc, argv);
 
     Pipeline* pipeline = new Pipeline();
+    pipeline->Add(v4l2);
     pipeline->Add(recorder);
     pipeline->Add(encoder);
     pipeline->Add(decoder);

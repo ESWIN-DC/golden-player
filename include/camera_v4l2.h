@@ -12,6 +12,8 @@
 
 #include "NvJpegDecoder.h"
 
+#include "module.h"
+
 namespace GPlayer {
 
 #define V4L2_BUFFERS_NUM 4
@@ -64,7 +66,7 @@ typedef struct {
     NvBufferColorFormat nvbuff_color;
 } nv_color_fmt;
 
-class CameraV4l2 {
+class CameraV4l2: public IModule {
 private:
     std::vector<nv_color_fmt> nvcolor_fmt_;
 
@@ -81,6 +83,8 @@ public:
             {V4L2_PIX_FMT_YUV420M, NvBufferColorFormat_YUV420},
         };
     }
+
+    std::string GetInfo() const;
     void print_usage(void);
     bool parse_cmdline(v4l2_context_t* ctx, int argc, char** argv);
     void set_defaults(v4l2_context_t* ctx);

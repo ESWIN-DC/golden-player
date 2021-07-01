@@ -22,6 +22,11 @@ static bool quit = false;
 
 using namespace std;
 
+std::string CameraV4l2::GetInfo() const
+{
+    return "CameraV4l2";
+}
+
 void CameraV4l2::print_usage(void)
 {
     printf(

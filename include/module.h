@@ -1,17 +1,17 @@
-#ifndef __TASK__
-#define __TASK__
+#ifndef __MODULE__
+#define __MODULE__
 
 #include <string>
 
 namespace GPlayer {
 
-class ITask {
+class IModule {
 public:
-    // virtual ~ITask() = 0;
+    // virtual ~IModule() = 0;
     virtual std::string GetInfo() const = 0;
     // virtual bool Bind() = 0;
 };
 
 }  // namespace GPlayer
 
-#endif  // __TASK__
+#endif  // __MODULE__
