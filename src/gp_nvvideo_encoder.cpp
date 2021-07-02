@@ -116,8 +116,12 @@ bool GPNvVideoEncoder::encoder_capture_plane_dq_callback(
                                    buffer->planes[0].bytesused);
 
     // videoEncoder->write_encoder_output_frame(ctx->out_file, buffer);
+<<<<<<< HEAD:src/gp_nvvideo_encoder.cpp
     GPFileSink* handler = dynamic_cast<GPFileSink*>(
         videoEncoder->GetBeader(BeaderType::FileSink).get());
+=======
+    IBead* handler = videoEncoder->GetHandler(IBead::RawBuffer);
+>>>>>>> change IModule to IBead:src/video_encoder.cpp
     if (handler) {
         GPBuffer gpbuffer(buffer->planes[0].data, buffer->planes[0].bytesused);
         GPData data(&gpbuffer);

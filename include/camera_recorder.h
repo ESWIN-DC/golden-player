@@ -14,7 +14,11 @@
 #include "gp_log.h"
 
 #include "Thread.h"
+<<<<<<< HEAD
 #include "gp_beader.h"
+=======
+#include "bead.h"
+>>>>>>> change IModule to IBead
 #include "nvmmapi/NvNativeBuffer.h"
 
 using namespace Argus;
@@ -57,7 +61,11 @@ private:
     bool m_gotError;
 };
 
+<<<<<<< HEAD
 class CameraRecorder : public IBeader {
+=======
+class CameraRecorder : public IBead {
+>>>>>>> change IModule to IBead
 public:
     std::string GetInfo() const;
     bool HasProc() override { return false; };

@@ -12,7 +12,11 @@
 
 #include "NvJpegDecoder.h"
 
+<<<<<<< HEAD:include/gp_camera_v4l2.h
 #include "gp_beader.h"
+=======
+#include "bead.h"
+>>>>>>> change IModule to IBead:include/camera_v4l2.h
 
 #include "gp_nvjpeg_decoder.h"
 #include "gp_nvvideo_encoder.h"
@@ -64,7 +68,11 @@ typedef struct {
     NvBufferColorFormat nvbuff_color;
 } nv_color_fmt;
 
+<<<<<<< HEAD:include/gp_camera_v4l2.h
 class GPCameraV4l2 : public IBeader {
+=======
+class CameraV4l2 : public IBead {
+>>>>>>> change IModule to IBead:include/camera_v4l2.h
 private:
     std::vector<nv_color_fmt> nvcolor_fmt_;
 
