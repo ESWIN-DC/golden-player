@@ -1,19 +1,19 @@
 #ifndef __DISPLAY_EGL___
 #define __DISPLAY_EGL___
 
-#include "module.h"
+#include "bead.h"
 namespace GPlayer {
 
 class Display {
 };
 
-class GPDisplayEGL : public IModule {
+class GPDisplayEGL : public IBead {
 public:
     GPDisplayEGL();
     ~GPDisplayEGL();
 
     std::string GetInfo() const;
-    void AddHandler(IModule* module);
+    void AddHandler(IBead* module);
     void Process(GPData* data);
 
 private:
@@ -37,7 +37,7 @@ private:
     // MJPEG decoding
     // NvJPEGDecoder* jpegdec_;
 
-    std::vector<IModule*> handlers_;
+    std::vector<IBead*> handlers_;
 };
 
 }  // namespace GPlayer

@@ -549,7 +549,7 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
                              (char*)fmtdesc.description);
             }
 
-            IModule* buffer_handler = GetHandler(IModule::RawBuffer);
+            IBead* buffer_handler = GetHandler(IBead::RawBuffer);
             if (buffer_handler) {
                 GPBuffer gpbuffer(ctx->g_buff[v4l2_buf.index].start,
                                   ctx->g_buff[v4l2_buf.index].size);
@@ -623,7 +623,7 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
             image.enable_cuda = ctx->enable_cuda;
             image.render_dmabuf_fd = ctx->render_dmabuf_fd;
             GPData data(&image);
-            GetHandler(IModule::Display)->Process(&data);
+            GetHandler(IBead::Display)->Process(&data);
 
             // Enqueue camera buff
             if (ioctl(ctx->cam_fd, VIDIOC_QBUF, &v4l2_buf))

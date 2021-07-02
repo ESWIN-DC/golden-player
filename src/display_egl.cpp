@@ -39,7 +39,7 @@ std::string GPDisplayEGL::GetInfo() const
     return "GPDisplayEGL";
 }
 
-void GPDisplayEGL::AddHandler(IModule* module)
+void GPDisplayEGL::AddHandler(IBead* module)
 {
     handlers_.push_back(module);
 }

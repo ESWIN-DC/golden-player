@@ -119,7 +119,7 @@ bool VideoEncoder::encoder_capture_plane_dq_callback(
                                    buffer->planes[0].bytesused);
 
     // videoEncoder->write_encoder_output_frame(ctx->out_file, buffer);
-    IModule* handler = videoEncoder->GetHandler(IModule::RawBuffer);
+    IBead* handler = videoEncoder->GetHandler(IBead::RawBuffer);
     if (handler) {
         GPBuffer gpbuffer(buffer->planes[0].data, buffer->planes[0].bytesused);
         GPData data(&gpbuffer);

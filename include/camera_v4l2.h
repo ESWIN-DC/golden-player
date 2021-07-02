@@ -13,7 +13,7 @@
 
 #include "NvJpegDecoder.h"
 
-#include "module.h"
+#include "bead.h"
 
 #include "video_encoder.h"
 
@@ -69,7 +69,7 @@ typedef struct {
     NvBufferColorFormat nvbuff_color;
 } nv_color_fmt;
 
-class CameraV4l2 : public IModule {
+class CameraV4l2 : public IBead {
 private:
     std::vector<nv_color_fmt> nvcolor_fmt_;
 
