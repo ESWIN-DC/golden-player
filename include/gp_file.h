@@ -3,12 +3,12 @@
 
 #include <fstream>
 #include <string>
+#include "beader.h"
 #include "gp_data.h"
-#include "module.h"
 
 namespace GPlayer {
 
-class GPFile : public IModule {
+class GPFile : public IBeader {
 private:
     GPFile();
 
@@ -16,7 +16,7 @@ public:
     GPFile(std::string filename);
     ~GPFile();
     std::string GetInfo() const;
-    void AddHandler(IModule* module);
+    void AddBeader(IBeader* module);
     void Process(GPData* data);
 
 private:

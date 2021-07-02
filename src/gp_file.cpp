@@ -17,7 +17,7 @@ std::string GPFile::GetInfo() const
     return "GPFile: " + filepath_;
 }
 
-void GPFile::AddHandler(IModule* module) {}
+void GPFile::AddBeader(IBeader* module) {}
 
 void GPFile::Process(GPData* data)
 {

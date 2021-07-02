@@ -14,7 +14,7 @@
 #include "gp_error.h"
 
 #include "Thread.h"
-#include "module.h"
+#include "beader.h"
 #include "nvmmapi/NvNativeBuffer.h"
 
 using namespace Argus;
@@ -88,7 +88,7 @@ private:
     bool m_gotError;
 };
 
-class CameraRecorder : public IModule {
+class CameraRecorder : public IBeader {
 public:
     std::string GetInfo() const;
     void Process(GPData* data);

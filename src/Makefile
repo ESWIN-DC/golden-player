@@ -1,7 +1,7 @@
 
 include ../Rules.mk
 
-APP := libgplayer.a
+APP := libgolden-player.a
 
 CPPFLAGS += \
 	-Wall -O1 -g\

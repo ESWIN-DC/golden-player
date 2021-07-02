@@ -29,9 +29,9 @@ int main(int argc, char* argv[])
     shared_ptr<GPFile> file =
         std::make_shared<GPFile>(std::string("try001.h264"));
 
-    encoder->AddHandler(file.get());
-    v4l2->AddHandler(egl.get());
-    v4l2->AddHandler(encoder.get());
+    encoder->AddBeader(file.get());
+    v4l2->AddBeader(egl.get());
+    v4l2->AddBeader(encoder.get());
 
     // ret = decoder->decode_proc(argc, argv);
     // ret = encoder->encode_proc(argc, argv);

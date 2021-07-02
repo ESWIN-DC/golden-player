@@ -6,18 +6,18 @@ namespace GPlayer {
 
 Pipeline::Pipeline() {}
 
-bool Pipeline::Add(const std::shared_ptr<IModule>& task)
+bool Pipeline::Add(const std::shared_ptr<IBeader>& task)
 {
     tasks_.push_back(task);
     return true;
 }
 
-bool Pipeline::Insert(const std::shared_ptr<IModule>& task)
+bool Pipeline::Insert(const std::shared_ptr<IBeader>& task)
 {
     return true;
 }
 
-bool Pipeline::Tee(const std::shared_ptr<IModule>& task)
+bool Pipeline::Tee(const std::shared_ptr<IBeader>& task)
 {
     return true;
 }

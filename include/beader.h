@@ -9,7 +9,7 @@
 
 namespace GPlayer {
 
-class IModule {
+class IBeader {
 public:
     typedef enum {
         Unknown = -1,
@@ -19,9 +19,9 @@ public:
     } Type;
 
 public:
-    IModule() : type_(Unknown) {}
+    IBeader() : type_(Unknown) {}
     virtual std::string GetInfo() const = 0;
-    virtual void AddHandler(IModule* module)
+    virtual void AddBeader(IBeader* module)
     {
         if (module->type_ == Unknown) {
             SPDLOG_ERROR("BUGBUG: unkown handler");
@@ -30,7 +30,7 @@ public:
         handlers_.push_back(module);
     }
 
-    IModule* GetHandler(Type type)
+    IBeader* GetBeader(Type type)
     {
         for (auto it = handlers_.begin(); it != handlers_.end(); ++it) {
             if ((*it)->type_ == type) {
@@ -44,7 +44,7 @@ public:
 
 private:
     Type type_;
-    std::vector<IModule*> handlers_;
+    std::vector<IBeader*> handlers_;
 };
 
 }  // namespace GPlayer

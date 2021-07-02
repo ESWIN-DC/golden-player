@@ -18,9 +18,9 @@
 #include "NvApplicationProfiler.h"
 #include "NvUtils.h"
 
+#include "beader.h"
 #include "context.h"
 #include "gplayer.h"
-#include "module.h"
 
 #define TEST_ERROR(cond, str, label) \
     if (cond) {                      \
@@ -61,7 +61,7 @@ namespace GPlayer {
 
 using namespace std;
 
-class VideoDecoder : public IModule {
+class VideoDecoder : public IBeader {
 private:
     VideoDecoder();
 

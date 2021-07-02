@@ -11,7 +11,7 @@ CPPFLAGS += \
 LDFLAGS += \
 	-L"$(TOP_DIR)/src" \
 	-L"$(TOP_DIR)/third_party/spdlog/build" \
-	-lgplayer \
+	-lgolden-player \
 	-lspdlog
 
 LDFLAGS += \
@@ -28,7 +28,7 @@ all: $(APP)
 	@echo "Compiling: $<"
 	$(CPP) $(CPPFLAGS) -c $<
 
-$(APP): $(OBJS)
+$(APP): $(OBJS) ../src/libgolden-player.a
 	@echo "Linking: $@"
 	$(CPP) -o $@ $(OBJS) $(CPPFLAGS) $(LDFLAGS)
 

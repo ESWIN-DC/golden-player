@@ -19,7 +19,7 @@
 #include "context.h"
 #include "gplayer.h"
 
-#include "module.h"
+#include "beader.h"
 
 #include "NvVideoEncoder.h"
 
@@ -43,7 +43,7 @@ namespace GPlayer {
 
 using namespace std;
 
-class VideoEncoder : public IModule {
+class VideoEncoder : public IBeader {
 private:
     VideoEncoder();
 
