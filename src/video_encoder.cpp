@@ -7,7 +7,12 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <thread>
 #include <utility>
+
+#include <fstream>
+#include "nlohmann/json.hpp"
+
 #include "NvUtils.h"
 
 #include <nvbuf_utils.h>
@@ -35,9 +40,15 @@ namespace GPlayer {
 using namespace std;
 
 VideoEncoder::VideoEncoder(const shared_ptr<VideoEncodeContext_T> context)
-    : handler_(nullptr)
 {
     ctx_ = context;
+
+    encode_thread_ = std::thread(encodeProc, this);
+}
+
+VideoEncoder::~VideoEncoder()
+{
+    encode_thread_.join();
 }
 
 std::string VideoEncoder::GetInfo() const
@@ -45,16 +56,11 @@ std::string VideoEncoder::GetInfo() const
     return "VideoEncoder";
 }
 
-void VideoEncoder::AddHandler(IModule* module)
-{
-    handler_ = module;
-}
-
-void VideoEncoder::Process(GPBuffer* buffer)
+void VideoEncoder::Process(GPData* data)
 {
     std::lock_guard<std::mutex> guard(frames_mutex_);
 
-    frames_.push_back(buffer);
+    frames_.push_back(data);
 
     sem_post(&ctx_->pollthread_sema);
 }
@@ -113,9 +119,11 @@ bool VideoEncoder::encoder_capture_plane_dq_callback(
                                    buffer->planes[0].bytesused);
 
     // videoEncoder->write_encoder_output_frame(ctx->out_file, buffer);
-    if (videoEncoder->handler_) {
+    IModule* handler = videoEncoder->GetHandler(IModule::RawBuffer);
+    if (handler) {
         GPBuffer gpbuffer(buffer->planes[0].data, buffer->planes[0].bytesused);
-        videoEncoder->handler_->Process(&gpbuffer);
+        GPData data(&gpbuffer);
+        handler->Process(&data);
     }
 
     num_encoded_frames++;
@@ -995,7 +1003,7 @@ cleanup:
     return -1;
 }
 
-int VideoEncoder::load_settings(int argc, char* argv[])
+int VideoEncoder::encode_proc()
 {
     VideoEncodeContext_T* ctx = ctx_.get();
     int ret = 0;
@@ -1004,8 +1012,11 @@ int VideoEncoder::load_settings(int argc, char* argv[])
 
     set_defaults();
 
-    ret = parse_csv_args(ctx_.get(), argc, argv);
-    TEST_ERROR(ret < 0, "Error parsing commandline arguments", cleanup);
+    // video_encode <in-file> <in-width> <in-height> <encoder-type> <out-file>
+    // ret = parse_csv_args(ctx_.get(), 6, argv);
+    // TEST_ERROR(ret < 0, "Error parsing commandline arguments", cleanup);
+
+    LoadConfiguration();
 
     pthread_setname_np(pthread_self(), "EncOutPlane");
 
@@ -1342,103 +1353,6 @@ int VideoEncoder::load_settings(int argc, char* argv[])
         SPDLOG_INFO("Created the PollThread and Encoder Thread\n");
     }
 
-    // encode process
-
-cleanup:
-    if (ctx->enc && ctx->enc->isInError()) {
-        cerr << "Encoder is in error" << endl;
-        error = 1;
-    }
-    if (ctx->got_error) {
-        error = 1;
-    }
-
-    if (ctx->pBitStreamCrc) {
-        char* pgold_crc = ctx->gold_crc;
-        Crc* pout_crc = ctx->pBitStreamCrc;
-        char StrCrcValue[20];
-        snprintf(StrCrcValue, 20, "%u", pout_crc->CrcValue);
-        // Remove CRLF from end of CRC, if present
-        do {
-            unsigned int len = strlen(pgold_crc);
-            if (len == 0)
-                break;
-            if (pgold_crc[len - 1] == '\n')
-                pgold_crc[len - 1] = '\0';
-            else if (pgold_crc[len - 1] == '\r')
-                pgold_crc[len - 1] = '\0';
-            else
-                break;
-        } while (1);
-
-        if (strcmp(StrCrcValue, pgold_crc)) {
-            cout << "======================" << endl;
-            cout << "video_encode: CRC FAILED" << endl;
-            cout << "======================" << endl;
-            cout << "Encoded CRC: " << StrCrcValue << " Gold CRC: " << pgold_crc
-                 << endl;
-            error = 1;
-        }
-        else {
-            cout << "======================" << endl;
-            cout << "video_encode: CRC PASSED" << endl;
-            cout << "======================" << endl;
-        }
-
-        CloseCrc(&ctx->pBitStreamCrc);
-    }
-
-    if (ctx->output_memory_type == V4L2_MEMORY_DMABUF) {
-        for (uint32_t i = 0; i < ctx->enc->output_plane.getNumBuffers(); i++) {
-            ret = ctx->enc->output_plane.unmapOutputBuffers(
-                i, ctx->output_plane_fd[i]);
-            if (ret < 0) {
-                cerr << "Error while unmapping buffer at output plane" << endl;
-                goto cleanup;
-            }
-
-            ret = NvBufferDestroy(ctx->output_plane_fd[i]);
-            if (ret < 0) {
-                cerr << "Failed to Destroy NvBuffer\n" << endl;
-                return ret;
-            }
-        }
-    }
-
-    delete ctx->enc;
-    // delete ctx->in_file;
-    // delete ctx->out_file;
-    delete ctx->roi_Param_file;
-    delete ctx->recon_Ref_file;
-    delete ctx->rps_Param_file;
-    delete ctx->hints_Param_file;
-    delete ctx->gdr_Param_file;
-    delete ctx->gdr_out_file;
-
-    // free(ctx->in_file_path);
-    // free(ctx->out_file_path);
-    free(ctx->ROI_Param_file_path);
-    free(ctx->Recon_Ref_file_path);
-    free(ctx->RPS_Param_file_path);
-    free(ctx->hints_Param_file_path);
-    free(ctx->GDR_Param_file_path);
-    free(ctx->GDR_out_file_path);
-    delete ctx->runtime_params_str;
-
-    if (!ctx->blocking_mode) {
-        sem_destroy(&ctx->pollthread_sema);
-        sem_destroy(&ctx->encoderthread_sema);
-    }
-    return -error;
-}
-
-int VideoEncoder::encode_proc(GPBuffer* buffer)
-{
-    VideoEncodeContext_T* ctx = ctx_.get();
-    int ret = 0;
-    int error = 0;
-    bool eos = false;
-
     // Enqueue all the empty capture plane buffers
     for (uint32_t i = 0; i < ctx->enc->capture_plane.getNumBuffers(); i++) {
         struct v4l2_buffer v4l2_buf;
@@ -1488,8 +1402,6 @@ int VideoEncoder::encode_proc(GPBuffer* buffer)
                 goto cleanup;
             }
         }
-
-        // buffer
 
         // if (read_video_frame(ctx->in_file, *buffer) < 0) {
         if (ReadFrame(*buffer) < 0) {
@@ -1750,11 +1662,12 @@ int VideoEncoder::ReadFrame(NvBuffer& buffer)
         for (j = 0; j < plane.fmt.height; j++) {
             std::lock_guard<std::mutex> guard(frames_mutex_);
             if (!frames_.empty()) {
-                GPBuffer* gbf = frames_.front();
-                if (gbf->GetLength() < bytes_to_read) {
+                GPData* gd = frames_.front();
+                GPBuffer* buffer = *gd;
+                if (buffer->GetLength() < bytes_to_read) {
                     return -1;
                 }
-                std::memcpy(data, gbf->GetData(), bytes_to_read);
+                std::memcpy(data, buffer->GetData(), bytes_to_read);
                 frames_.pop_back();
             }
 
@@ -1763,6 +1676,32 @@ int VideoEncoder::ReadFrame(NvBuffer& buffer)
         plane.bytesused = plane.fmt.stride * plane.fmt.height;
     }
     return 0;
+}
+
+int VideoEncoder::encodeProc(VideoEncoder* encoder)
+{
+    return encoder->encode_proc();
+}
+
+int VideoEncoder::SaveConfiguration(const std::string& configuration)
+{
+    using nlohmann::json;
+
+    std::ofstream o("encode.json");
+    json j;
+
+    o << j;
+}
+
+int VideoEncoder::LoadConfiguration()
+{
+    using nlohmann::json;
+
+    std::ifstream i("encode.json");
+    json j;
+    i >> j;
+
+    ctx_->blocking_mode = j["blocking_mode"].get<int>();
 }
 
 }  // namespace GPlayer

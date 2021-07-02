@@ -70,8 +70,7 @@ public:
 
     std::string GetInfo() const;
 
-    void AddHandler(IModule* module);
-    void Process(GPBuffer* buffer);
+    void Process(GPData* data);
 
     int read_decoder_input_nalu(ifstream* stream,
                                 NvBuffer* buffer,

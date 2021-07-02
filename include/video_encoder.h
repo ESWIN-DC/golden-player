@@ -11,6 +11,7 @@
 #include <iostream>
 #include <memory>
 #include <sstream>
+#include <thread>
 
 #include <nvbuf_utils.h>
 
@@ -48,10 +49,10 @@ private:
 
 public:
     VideoEncoder(const shared_ptr<VideoEncodeContext_T> context);
+    ~VideoEncoder();
 
     std::string GetInfo() const;
-    void AddHandler(IModule* module);
-    void Process(GPBuffer* buffer);
+    void Process(GPData* data);
 
     void Abort();
 
@@ -157,17 +158,18 @@ public:
     static void* encoder_pollthread_fcn(void* arg);
     int encoder_proc_nonblocking(bool eos);
     int encoder_proc_blocking(bool eos);
-
-    int load_settings(int argc, char* argv[]);
-    int encode_proc(GPBuffer* buffer);
-
+    int encode_proc();
+    static int encodeProc(VideoEncoder* encoder);
     int ReadFrame(NvBuffer& buffer);
+
+    int SaveConfiguration(const std::string& configuration);
+    int LoadConfiguration();
 
 private:
     shared_ptr<VideoEncodeContext_T> ctx_;
-    IModule* handler_;
-    std::vector<GPBuffer*> frames_;
+    std::vector<GPData*> frames_;
     std::mutex frames_mutex_;
+    std::thread encode_thread_;
 };  // class VideoEncoder
 
 }  // namespace GPlayer

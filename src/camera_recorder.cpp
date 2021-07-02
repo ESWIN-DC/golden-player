@@ -305,9 +305,7 @@ std::string CameraRecorder::GetInfo() const
     return "CameraRecorder";
 }
 
-void CameraRecorder::AddHandler(IModule* module) {}
-
-void CameraRecorder::Process(GPBuffer* buffer) {}
+void CameraRecorder::Process(GPData* buffer) {}
 
 /*******************************************************************************
  * Argus Producer thread:

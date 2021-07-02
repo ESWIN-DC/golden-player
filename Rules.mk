@@ -63,6 +63,7 @@ endif
 CPPFLAGS += -std=c++14 \
 	-fPIC \
 	-I"$(TOP_DIR)/third_party/spdlog/include" \
+	-I"$(TOP_DIR)/third_party/json/include" \
 	-I"$(TOP_DIR)/third_party/tegra_multimedia_api-R32.2.3/include" \
 	-I"$(TOP_DIR)/third_party/tegra_multimedia_api-R32.2.3/include/libjpeg-8b" \
 	-I"$(ALGO_CUDA_DIR)" \

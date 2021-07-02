@@ -91,14 +91,7 @@ private:
 class CameraRecorder : public IModule {
 public:
     std::string GetInfo() const;
-    void AddHandler(IModule* module);
-    void Process(GPBuffer* buffer);
-    /*******************************************************************************
-     * Argus Producer thread:
-     *   Opens the Argus camera driver, creates an BufferOutputStream to output
-     *   frames, then performs repeating capture requests for CAPTURE_TIME
-     *   seconds before closing the producer and Argus driver.
-     ******************************************************************************/
+    void Process(GPData* data);
     bool Execute();
 
     void printHelp();

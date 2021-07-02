@@ -32,7 +32,7 @@ typedef struct {
 
 typedef struct {
     // camera v4l2 context
-    const char* cam_devname;
+    std::string cam_devname;
     char cam_file[16];
     int cam_fd;
     unsigned int cam_pixfmt;
@@ -88,8 +88,7 @@ public:
     }
 
     std::string GetInfo() const;
-    void AddHandler(IModule* module);
-    void Process(GPBuffer* buffer);
+    void Process(GPData* data);
     void print_usage(void);
     bool parse_cmdline(v4l2_context_t* ctx, int argc, char** argv);
     void set_defaults(v4l2_context_t* ctx);
@@ -105,19 +104,16 @@ public:
     bool prepare_buffers(v4l2_context_t* ctx);
     bool start_stream(v4l2_context_t* ctx);
     static void signal_handle(int signum);
-    bool cuda_postprocess(v4l2_context_t* ctx, int fd);
     bool start_capture(v4l2_context_t* ctx);
     bool stop_stream(v4l2_context_t* ctx);
     // bool ReadFrame(NvBuffer& buffer);
-
-    void AddBufferReadHandler(std::function<bool(int)> callback);
-
     int main(int argc, char* argv[]);
 
+    int SaveConfiguration(const std::string& configuration);
+    int LoadConfiguration();
+
 private:
-    std::function<bool(int)> OnBufferRead_;
-    // std::function<bool(NvBuffer *buffer)> OnBufferRead_;
-    IModule* handler_;
+    v4l2_context_t ctx_;
 };
 
 }  // namespace GPlayer

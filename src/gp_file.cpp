@@ -19,8 +19,9 @@ std::string GPFile::GetInfo() const
 
 void GPFile::AddHandler(IModule* module) {}
 
-void GPFile::Process(GPBuffer* buffer)
+void GPFile::Process(GPData* data)
 {
+    GPBuffer* buffer = *data;
     outfile_->write(static_cast<const char*>(buffer->GetData()),
                     buffer->GetLength());
 }

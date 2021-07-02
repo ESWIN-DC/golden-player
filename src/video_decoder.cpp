@@ -68,9 +68,7 @@ std::string VideoDecoder::GetInfo() const
     return "VideoDecoder";
 }
 
-void VideoDecoder::AddHandler(IModule* module) {}
-
-void VideoDecoder::Process(GPBuffer* buffer) {}
+void VideoDecoder::Process(GPData* data) {}
 
 int VideoDecoder::read_decoder_input_nalu(ifstream* stream,
                                           NvBuffer* buffer,

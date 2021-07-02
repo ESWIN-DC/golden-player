@@ -3,7 +3,7 @@
 
 #include <fstream>
 #include <string>
-#include "gp_buffer.h"
+#include "gp_data.h"
 #include "module.h"
 
 namespace GPlayer {
@@ -17,7 +17,7 @@ public:
     ~GPFile();
     std::string GetInfo() const;
     void AddHandler(IModule* module);
-    void Process(GPBuffer* buffer);
+    void Process(GPData* data);
 
 private:
     std::string filepath_;

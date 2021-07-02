@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <signal.h>
+#include <spdlog/spdlog.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
@@ -11,6 +12,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <new>
+
+#include <fstream>
+#include "nlohmann/json.hpp"
 
 #include "camera_v4l2.h"
 #include "gp_error.h"
@@ -214,7 +218,7 @@ bool CameraV4l2::camera_initialize(v4l2_context_t* ctx)
     struct v4l2_format fmt;
 
     // Open camera device
-    ctx->cam_fd = open(ctx->cam_devname, O_RDWR);
+    ctx->cam_fd = open(ctx->cam_devname.c_str(), O_RDWR);
     if (ctx->cam_fd == -1)
         ERROR_RETURN("Failed to open camera device %s: %s (%d)",
                      ctx->cam_devname, strerror(errno), errno);
@@ -493,26 +497,6 @@ void CameraV4l2::signal_handle(int signum)
     quit = true;
 }
 
-bool CameraV4l2::cuda_postprocess(v4l2_context_t* ctx, int fd)
-{
-    if (ctx->enable_cuda) {
-        // Create EGLImage from dmabuf fd
-        ctx->egl_image = NvEGLImageFromFd(ctx->egl_display, fd);
-        if (ctx->egl_image == NULL)
-            ERROR_RETURN("Failed to map dmabuf fd (0x%X) to EGLImage",
-                         ctx->render_dmabuf_fd);
-
-        // Running algo process with EGLImage via GPU multi cores
-        HandleEGLImage(&ctx->egl_image);
-
-        // Destroy EGLImage
-        NvDestroyEGLImage(ctx->egl_display, ctx->egl_image);
-        ctx->egl_image = NULL;
-    }
-
-    return true;
-}
-
 bool CameraV4l2::start_capture(v4l2_context_t* ctx)
 {
     struct sigaction sig_action;
@@ -558,6 +542,22 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
             if (ctx->frame == ctx->save_n_frame)
                 save_frame_to_file(ctx, &v4l2_buf);
 
+            SPDLOG_DEBUG("pixel format = {}", ctx->cam_pixfmt);
+            struct v4l2_fmtdesc fmtdesc;
+            if (ioctl(ctx->cam_fd, ctx->cam_pixfmt, &fmtdesc) == 0) {
+                SPDLOG_DEBUG("pixel format = {} => {}", ctx->cam_pixfmt,
+                             (char*)fmtdesc.description);
+            }
+
+            IModule* buffer_handler = GetHandler(IModule::RawBuffer);
+            if (buffer_handler) {
+                GPBuffer gpbuffer(ctx->g_buff[v4l2_buf.index].start,
+                                  ctx->g_buff[v4l2_buf.index].size);
+                GPData data(&gpbuffer);
+
+                buffer_handler->Process(&data);
+            }
+
             if (ctx->cam_pixfmt == V4L2_PIX_FMT_MJPEG) {
                 int fd = 0;
                 uint32_t width, height, pixfmt;
@@ -589,6 +589,10 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
                     NvBufferTransform(fd, ctx->render_dmabuf_fd, &transParams))
                     ERROR_RETURN("Failed to convert the buffer");
             }
+            else if (ctx->cam_pixfmt == V4L2_PIX_FMT_H264) {
+            }
+            else if (ctx->cam_pixfmt == V4L2_PIX_FMT_H265) {
+            }
             else {
                 if (ctx->capture_dmabuf) {
                     // Cache sync for VIC operation
@@ -614,15 +618,12 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
                 }
             }
 
-            if (handler_) {
-                GPBuffer gpbuffer(ctx->g_buff[v4l2_buf.index].start,
-                                  (ctx->cam_w * ctx->cam_h * 8));
-                handler_->Process(&gpbuffer);
-            }
-
-            cuda_postprocess(ctx, ctx->render_dmabuf_fd);
-
-            ctx->renderer->render(ctx->render_dmabuf_fd);
+            // Display the camera buffer
+            GPEGLImage image;
+            image.enable_cuda = ctx->enable_cuda;
+            image.render_dmabuf_fd = ctx->render_dmabuf_fd;
+            GPData data(&image);
+            GetHandler(IModule::Display)->Process(&data);
 
             // Enqueue camera buff
             if (ioctl(ctx->cam_fd, VIDIOC_QBUF, &v4l2_buf))
@@ -654,52 +655,22 @@ bool CameraV4l2::stop_stream(v4l2_context_t* ctx)
     return true;
 }
 
-void CameraV4l2::Process(GPBuffer* buffer)
+void CameraV4l2::Process(GPData* data)
 {
     main(0, NULL);
 }
 
-// bool CameraV4l2::ReadFrame(NvBuffer& buffer)
-// {
-//     uint32_t i, j;
-//     char* data;
-
-//     for (i = 0; i < buffer.n_planes; i++) {
-//         NvBuffer::NvBufferPlane& plane = buffer.planes[i];
-//         std::streamsize bytes_to_read =
-//             plane.fmt.bytesperpixel * plane.fmt.width;
-//         data = (char*)plane.data;
-//         plane.bytesused = 0;
-//         for (j = 0; j < plane.fmt.height; j++) {
-//             stream->read(data, bytes_to_read);
-//             if (stream->gcount() < bytes_to_read)
-//                 return false;
-//             data += plane.fmt.stride;
-//         }
-//         plane.bytesused = plane.fmt.stride * plane.fmt.height;
-//     }
-
-//     return true;
-// }
-void CameraV4l2::AddBufferReadHandler(std::function<bool(int)> callback)
-{
-    OnBufferRead_ = callback;
-}
-
-void CameraV4l2::AddHandler(IModule* module)
-{
-    handler_ = module;
-}
-
 int CameraV4l2::main(int argc, char* argv[])
 {
-    v4l2_context_t ctx;
+    v4l2_context_t& ctx = ctx_;
     int error = 0;
 
     set_defaults(&ctx);
 
-    CHECK_ERROR(parse_cmdline(&ctx, argc, argv), cleanup,
-                "Invalid options specified");
+    //  ./camera_v4l2_cuda -d /dev/video0 -s 640x480 -f YUYV -n 30 -c
+    // CHECK_ERROR(parse_cmdline(&ctx, argc, argv), cleanup,
+    //             "Invalid options specified");
+    LoadConfiguration();
 
     CHECK_ERROR(init_components(&ctx), cleanup,
                 "Failed to initialize v4l2 components");
@@ -742,6 +713,45 @@ cleanup:
     NvBufferDestroy(ctx.render_dmabuf_fd);
 
     return -error;
+}
+
+int CameraV4l2::SaveConfiguration(const std::string& configuration)
+{
+    using nlohmann::json;
+
+    std::ofstream o("camerav4l2.json");
+    json j;
+
+    o << j;
+}
+
+int CameraV4l2::LoadConfiguration()
+{
+    using nlohmann::json;
+
+    v4l2_context_t* ctx = &ctx_;
+    std::ifstream i("camerav4l2.json");
+    json j;
+    i >> j;
+
+    ctx->cam_devname = j["device"].get<std::string>();
+
+    ctx->cam_pixfmt = V4L2_PIX_FMT_YUYV;
+    ctx->cam_w = 640;
+    ctx->cam_h = 480;
+    ctx->frame = 0;
+    ctx->save_n_frame = 0;
+
+    ctx->g_buff = NULL;
+    ctx->capture_dmabuf = true;
+    ctx->renderer = NULL;
+    ctx->fps = 30;
+
+    ctx->enable_cuda = false;
+    ctx->egl_image = NULL;
+    ctx->egl_display = EGL_NO_DISPLAY;
+
+    ctx->enable_verbose = false;
 }
 
 }  // namespace GPlayer
