@@ -2,7 +2,7 @@ include Rules.mk
 
 TOPTARGETS := all clean
 
-SUBDIRS := src samples
+SUBDIRS := src examples
 
 $(TOPTARGETS): $(SUBDIRS)
 $(SUBDIRS):

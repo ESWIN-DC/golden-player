@@ -1,7 +1,5 @@
 *.o
-src/libgplayer.a
-gplayer
 .ccls-cache
 .ccls
 third_party/
-
+build/
