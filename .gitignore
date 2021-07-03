@@ -7,3 +7,4 @@ samples/gplayer-mjpeg
 .ccls
 third_party/
 dist/
+build/

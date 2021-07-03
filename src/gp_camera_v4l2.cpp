@@ -590,19 +590,8 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
             if (ctx->frame == ctx->save_n_frame)
                 save_frame_to_file(ctx, &v4l2_buf);
 
-<<<<<<< HEAD:src/gp_camera_v4l2.cpp
             GPFileSink* buffer_handler = dynamic_cast<GPFileSink*>(
                 GetBeader(BeaderType::FileSink).get());
-=======
-            SPDLOG_DEBUG("pixel format = {}", ctx->cam_pixfmt);
-            struct v4l2_fmtdesc fmtdesc;
-            if (ioctl(ctx->cam_fd, ctx->cam_pixfmt, &fmtdesc) == 0) {
-                SPDLOG_DEBUG("pixel format = {} => {}", ctx->cam_pixfmt,
-                             (char*)fmtdesc.description);
-            }
-
-            IBead* buffer_handler = GetHandler(IBead::RawBuffer);
->>>>>>> change IModule to IBead:src/camera_v4l2.cpp
             if (buffer_handler) {
                 GPBuffer gpbuffer(pbuf, bufsize);
                 GPData data(&gpbuffer);
@@ -688,17 +677,9 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
             }
 
             // Display the camera buffer
-<<<<<<< HEAD:src/gp_camera_v4l2.cpp
             if (display) {
                 display->Display(ctx->enable_cuda, ctx->render_dmabuf_fd);
             }
-=======
-            GPEGLImage image;
-            image.enable_cuda = ctx->enable_cuda;
-            image.render_dmabuf_fd = ctx->render_dmabuf_fd;
-            GPData data(&image);
-            GetHandler(IBead::Display)->Process(&data);
->>>>>>> change IModule to IBead:src/camera_v4l2.cpp
 
             // Enqueue camera buff
             if (ioctl(ctx->cam_fd, VIDIOC_QBUF, &v4l2_buf))
