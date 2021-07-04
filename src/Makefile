@@ -16,7 +16,7 @@ SRCS := \
 	camera_v4l2.cpp \
 	display.cpp \
 	display_egl.cpp \
-	gp_file.cpp \
+	gp_filesink.cpp \
 	pipeline.cpp \
 	$(wildcard $(CLASS_DIR)/*.cpp)
 

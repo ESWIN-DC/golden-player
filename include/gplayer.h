@@ -7,7 +7,7 @@
 #include "camera_v4l2.h"
 #include "context.h"
 #include "display_egl.h"
-#include "gp_file.h"
+#include "gp_filesink.h"
 #include "pipeline.h"
 #include "video_decoder.h"
 #include "video_encoder.h"

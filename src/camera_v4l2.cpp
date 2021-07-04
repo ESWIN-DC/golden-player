@@ -540,7 +540,8 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
                              (char*)fmtdesc.description);
             }
 
-            IBeader* buffer_handler = GetBeader(IBeader::RawBuffer);
+            GPFileSink* buffer_handler =
+                dynamic_cast<GPFileSink*>(GetBeader(IBeader::FileSink));
             if (buffer_handler) {
                 GPBuffer gpbuffer(ctx->g_buff[v4l2_buf.index].start,
                                   ctx->g_buff[v4l2_buf.index].size);
@@ -582,13 +583,13 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
             }
             else if (ctx->cam_pixfmt == V4L2_PIX_FMT_H264) {
                 // encoder
-                IBeader* bead = GetBeader(IBeader::Encoder);
-                if (bead) {
-                    // TODO:
-                    GPEGLImage image;
-                    GPData data(&image);
-                    bead->Process(&data);
-                }
+                // IBeader* bead = GetBeader(IBeader::Encoder);
+                // if (bead) {
+                //     // TODO:
+                //     GPEGLImage image;
+                //     GPData data(&image);
+                //     bead->Process(&data);
+                // }
             }
             else if (ctx->cam_pixfmt == V4L2_PIX_FMT_H265) {
             }

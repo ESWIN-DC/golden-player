@@ -26,8 +26,8 @@ int main(int argc, char* argv[])
     shared_ptr<CameraRecorder> recorder = std::make_shared<CameraRecorder>();
     shared_ptr<CameraV4l2> v4l2 = std::make_shared<CameraV4l2>();
     shared_ptr<GPDisplayEGL> egl = std::make_shared<GPDisplayEGL>();
-    shared_ptr<GPFile> file =
-        std::make_shared<GPFile>(std::string("try001.h264"));
+    shared_ptr<GPFileSink> file =
+        std::make_shared<GPFileSink>(std::string("try001.h264"));
 
     encoder->AddBeader(file.get());
     v4l2->AddBeader(egl.get());

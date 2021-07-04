@@ -1,5 +1,5 @@
-#ifndef __GP_FILE__
-#define __GP_FILE__
+#ifndef __GP_FILESINK__
+#define __GP_FILESINK__
 
 #include <fstream>
 #include <string>
@@ -8,15 +8,14 @@
 
 namespace GPlayer {
 
-class GPFile : public IBeader {
+class GPFileSink : public IBeader {
 private:
-    GPFile();
+    GPFileSink();
 
 public:
-    GPFile(std::string filename);
-    ~GPFile();
+    GPFileSink(std::string filename);
+    ~GPFileSink();
     std::string GetInfo() const;
-    void AddBeader(IBeader* module);
     void Process(GPData* data);
 
 private:
@@ -26,4 +25,4 @@ private:
 
 }  // namespace GPlayer
 
-#endif  // __GP_FILE__
+#endif  // __GP_FILESINK__

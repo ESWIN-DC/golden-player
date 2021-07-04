@@ -13,7 +13,7 @@ class IBeader {
 public:
     typedef enum {
         Unknown = -1,
-        RawBuffer,
+        FileSink,
         IMAGE,
         Display,
         Encoder,
@@ -23,6 +23,9 @@ public:
 public:
     IBeader() : type_(Unknown) {}
     virtual std::string GetInfo() const = 0;
+
+    void SetType(Type type) { type_ = type; }
+    Type GetType() const { return type_; }
     virtual void AddBeader(IBeader* module)
     {
         std::lock_guard<std::mutex> guard(handlers_mutex_);
