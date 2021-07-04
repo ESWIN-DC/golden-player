@@ -13,12 +13,11 @@ public:
     ~GPDisplayEGL();
 
     std::string GetInfo() const;
-    void AddBeader(IBeader* module);
-    void Process(GPData* data);
-
-private:
-    bool Initialize();
+    bool Initialize(int fps, bool enable_cuda, uint32_t width, uint32_t height);
     void Terminate();
+    void Display(bool enable_cuda, int dmabuf_fd);
+    void enableProfiling();
+    void printProfilingStats();
 
 public:
     EGLImageKHR GetImage(int fd);

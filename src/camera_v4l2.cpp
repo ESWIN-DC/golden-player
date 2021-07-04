@@ -132,12 +132,12 @@ void CameraV4l2::set_defaults(v4l2_context_t* ctx)
 
     ctx->g_buff = NULL;
     ctx->capture_dmabuf = true;
-    ctx->renderer = NULL;
+    // ctx->renderer = NULL;
     ctx->fps = 30;
 
     ctx->enable_cuda = false;
-    ctx->egl_image = NULL;
-    ctx->egl_display = EGL_NO_DISPLAY;
+    // ctx->egl_image = NULL;
+    // ctx->egl_display = EGL_NO_DISPLAY;
 
     ctx->enable_verbose = false;
 }
@@ -264,36 +264,18 @@ bool CameraV4l2::camera_initialize(v4l2_context_t* ctx)
     return true;
 }
 
-bool CameraV4l2::display_initialize(v4l2_context_t* ctx)
-{
-    // Create EGL renderer
-    ctx->renderer = NvEglRenderer::createEglRenderer("renderer0", ctx->cam_w,
-                                                     ctx->cam_h, 0, 0);
-    if (!ctx->renderer)
-        ERROR_RETURN("Failed to create EGL renderer");
-    ctx->renderer->setFPS(ctx->fps);
-
-    if (ctx->enable_cuda) {
-        // Get defalut EGL display
-        ctx->egl_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-        if (ctx->egl_display == EGL_NO_DISPLAY)
-            ERROR_RETURN("Failed to get EGL display connection");
-
-        // Init EGL display connection
-        if (!eglInitialize(ctx->egl_display, NULL, NULL))
-            ERROR_RETURN("Failed to initialize EGL display connection");
-    }
-
-    return true;
-}
-
 bool CameraV4l2::init_components(v4l2_context_t* ctx)
 {
+    GPDisplayEGL* display =
+        dynamic_cast<GPDisplayEGL*>(GetBeader(IBeader::Display));
+
     if (!camera_initialize(ctx))
         ERROR_RETURN("Failed to initialize camera device");
 
-    if (!display_initialize(ctx))
+    if (!display || !display->Initialize(ctx->fps, ctx->enable_cuda, ctx->cam_w,
+                                         ctx->cam_h)) {
         ERROR_RETURN("Failed to initialize display");
+    }
 
     INFO("Initialize v4l2 components successfully");
     return true;
@@ -502,6 +484,10 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
     struct sigaction sig_action;
     struct pollfd fds[1];
     NvBufferTransformParams transParams;
+    GPNVJpegDecoder* jpeg_decoder =
+        dynamic_cast<GPNVJpegDecoder*>(GetBeader(IBeader::JpegDecoder));
+    GPDisplayEGL* display =
+        dynamic_cast<GPDisplayEGL*>(GetBeader(IBeader::Display));
 
     // Ensure a clean shutdown if user types <ctrl+c>
     sig_action.sa_handler = signal_handle;
@@ -509,8 +495,11 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
     sig_action.sa_flags = 0;
     sigaction(SIGINT, &sig_action, NULL);
 
-    if (ctx->cam_pixfmt == V4L2_PIX_FMT_MJPEG)
-        ctx->jpegdec = NvJPEGDecoder::createJPEGDecoder("jpegdec");
+    if (ctx->cam_pixfmt == V4L2_PIX_FMT_MJPEG) {
+        // TODO: v0.2, create from registry
+        // registry->New("jpegdec");
+        // ctx->jpegdec = NvJPEGDecoder::createJPEGDecoder("jpegdec");
+    }
 
     // Init the NvBufferTransformParams
     memset(&transParams, 0, sizeof(transParams));
@@ -518,7 +507,9 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
     transParams.transform_filter = NvBufferTransform_Filter_Smart;
 
     // Enable render profiling information
-    ctx->renderer->enableProfiling();
+    if (display) {
+        display->enableProfiling();
+    }
 
     fds[0].fd = ctx->cam_fd;
     fds[0].events = POLLIN;
@@ -579,9 +570,9 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
                     bytesused--;
                 }
 
-                if (ctx->jpegdec->decodeToFd(
-                        fd, ctx->g_buff[v4l2_buf.index].start, bytesused,
-                        pixfmt, width, height) < 0)
+                if (jpeg_decoder && jpeg_decoder->decodeToFd(
+                                        fd, ctx->g_buff[v4l2_buf.index].start,
+                                        bytesused, pixfmt, width, height) < 0)
                     ERROR_RETURN("Cannot decode MJPEG");
 
                 // Convert the camera buffer to YUV420P
@@ -590,6 +581,14 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
                     ERROR_RETURN("Failed to convert the buffer");
             }
             else if (ctx->cam_pixfmt == V4L2_PIX_FMT_H264) {
+                // encoder
+                IBeader* bead = GetBeader(IBeader::Encoder);
+                if (bead) {
+                    // TODO:
+                    GPEGLImage image;
+                    GPData data(&image);
+                    bead->Process(&data);
+                }
             }
             else if (ctx->cam_pixfmt == V4L2_PIX_FMT_H265) {
             }
@@ -619,13 +618,14 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
             }
 
             // Display the camera buffer
-            IBeader* bead = GetBeader(IBeader::Display);
-            if (bead) {
-                GPEGLImage image;
-                image.enable_cuda = ctx->enable_cuda;
-                image.render_dmabuf_fd = ctx->render_dmabuf_fd;
-                GPData data(&image);
-                bead->Process(&data);
+            if (display) {
+                // GPEGLImage image;
+                // image.enable_cuda = ctx->enable_cuda;
+                // image.render_dmabuf_fd = ctx->render_dmabuf_fd;
+                // GPData data(&image);
+                // bead->Process(&data);
+
+                display->Display(ctx->enable_cuda, ctx->render_dmabuf_fd);
             }
 
             // Enqueue camera buff
@@ -636,10 +636,14 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
     }
 
     // Print profiling information when streaming stops.
-    ctx->renderer->printProfilingStats();
+    if (display)
+        display->printProfilingStats();
 
-    if (ctx->cam_pixfmt == V4L2_PIX_FMT_MJPEG)
-        delete ctx->jpegdec;
+    if (ctx->cam_pixfmt == V4L2_PIX_FMT_MJPEG) {
+        // delete ctx->jpegdec;
+        // bad procedure!
+        RemoveBeader(jpeg_decoder);
+    }
 
     return true;
 }
@@ -697,11 +701,13 @@ cleanup:
     if (ctx.cam_fd > 0)
         close(ctx.cam_fd);
 
-    if (ctx.renderer != NULL)
-        delete ctx.renderer;
+    // if (ctx.renderer != NULL)
+    //     delete ctx.renderer;
 
-    if (ctx.egl_display && !eglTerminate(ctx.egl_display))
-        printf("Failed to terminate EGL display connection\n");
+    // if (ctx.egl_display && !eglTerminate(ctx.egl_display))
+    //     printf("Failed to terminate EGL display connection\n");
+
+    RemoveBeader(Display);
 
     if (ctx.g_buff != NULL) {
         for (unsigned i = 0; i < V4L2_BUFFERS_NUM; i++) {
@@ -747,12 +753,12 @@ int CameraV4l2::LoadConfiguration()
 
     ctx->g_buff = NULL;
     ctx->capture_dmabuf = true;
-    ctx->renderer = NULL;
+    // ctx->renderer = NULL;
     ctx->fps = 30;
 
     ctx->enable_cuda = false;
-    ctx->egl_image = NULL;
-    ctx->egl_display = EGL_NO_DISPLAY;
+    // ctx->egl_image = NULL;
+    // ctx->egl_display = EGL_NO_DISPLAY;
 
     ctx->enable_verbose = false;
 }

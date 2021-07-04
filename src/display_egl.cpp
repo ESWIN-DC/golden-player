@@ -24,10 +24,7 @@
 
 namespace GPlayer {
 
-GPDisplayEGL::GPDisplayEGL() : egl_display_(EGL_NO_DISPLAY)
-{
-    Initialize();
-}
+GPDisplayEGL::GPDisplayEGL() : egl_display_(EGL_NO_DISPLAY) {}
 
 GPDisplayEGL::~GPDisplayEGL()
 {
@@ -39,22 +36,14 @@ std::string GPDisplayEGL::GetInfo() const
     return "GPDisplayEGL";
 }
 
-void GPDisplayEGL::AddBeader(IBeader* module)
+void GPDisplayEGL::Display(bool enable_cuda, int dmabuf_fd)
 {
-    handlers_.push_back(module);
-}
-
-void GPDisplayEGL::Process(GPData* data)
-{
-    GPEGLImage* renderer_data = *data;
-
-    if (renderer_data->enable_cuda) {
+    if (enable_cuda) {
         // Create EGLImage from dmabuf fd
-        EGLImageKHR egl_image =
-            NvEGLImageFromFd(egl_display_, renderer_data->render_dmabuf_fd);
+        EGLImageKHR egl_image = NvEGLImageFromFd(egl_display_, dmabuf_fd);
         if (egl_image == NULL) {
             SPDLOG_ERROR("Failed to map dmabuf fd (0x%X) to EGLImage",
-                         renderer_data->render_dmabuf_fd);
+                         dmabuf_fd);
             return;
         }
 
@@ -65,16 +54,40 @@ void GPDisplayEGL::Process(GPData* data)
         NvDestroyEGLImage(egl_display_, egl_image);
     }
 
-    renderer_->render(renderer_data->render_dmabuf_fd);
+    renderer_->render(dmabuf_fd);
 }
 
-bool GPDisplayEGL::Initialize()
+void GPDisplayEGL::enableProfiling()
 {
-    // Get default EGL display
-    egl_display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    if (egl_display_ == EGL_NO_DISPLAY) {
-        spdlog::error("Cannot get EGL display.\n");
-        return false;
+    renderer_->enableProfiling();
+}
+
+void GPDisplayEGL::printProfilingStats()
+{
+    renderer_->printProfilingStats();
+}
+
+bool GPDisplayEGL::Initialize(int fps,
+                              bool enable_cuda,
+                              uint32_t width,
+                              uint32_t height)
+{
+    // Create EGL renderer
+    renderer_ =
+        NvEglRenderer::createEglRenderer("renderer0", width, height, 0, 0);
+    if (!renderer_)
+        ERROR_RETURN("Failed to create EGL renderer");
+    renderer_->setFPS(fps);
+
+    if (enable_cuda) {
+        // Get defalut EGL display
+        egl_display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+        if (egl_display_ == EGL_NO_DISPLAY)
+            ERROR_RETURN("Failed to get EGL display connection");
+
+        // Init EGL display connection
+        if (!eglInitialize(egl_display_, NULL, NULL))
+            ERROR_RETURN("Failed to initialize EGL display connection");
     }
 
     return true;
@@ -84,7 +97,7 @@ EGLImageKHR GPDisplayEGL::GetImage(int fd)
 {
     EGLImageKHR egl_image = NvEGLImageFromFd(egl_display_, fd);
     if (egl_image == NULL)
-        spdlog::error("Failed to map dmabuf fd (0x{0:X}) to EGLImage", fd);
+        SPDLOG_ERROR("Failed to map dmabuf fd (0x{0:X}) to EGLImage", fd);
 
     return egl_image;
 }
@@ -93,7 +106,7 @@ void GPDisplayEGL::Terminate()
 {
     // Terminate EGL display
     if (egl_display_ && !eglTerminate(egl_display_))
-        spdlog::error("Failed to terminate EGL display connection\n");
+        SPDLOG_ERROR("Failed to terminate EGL display connection\n");
 }
 
 }  // namespace GPlayer

@@ -1,5 +1,4 @@
 
-
 #ifndef __CAMERA_V4L2__
 #define __CAMERA_V4L2__
 
@@ -15,6 +14,7 @@
 
 #include "beader.h"
 
+#include "nvjpeg_decoder.h"
 #include "video_encoder.h"
 
 namespace GPlayer {
@@ -45,18 +45,18 @@ typedef struct {
     nv_buffer* g_buff;
     bool capture_dmabuf;
 
-    // EGL renderer
-    NvEglRenderer* renderer;
+    // // EGL renderer
+    // NvEglRenderer* renderer;
     int render_dmabuf_fd;
     int fps;
 
     // CUDA processing
     bool enable_cuda;
-    EGLDisplay egl_display;
-    EGLImageKHR egl_image;
+    // EGLDisplay egl_display;
+    // EGLImageKHR egl_image;
 
-    // MJPEG decoding
-    NvJPEGDecoder* jpegdec;
+    // // MJPEG decoding
+    // NvJPEGDecoder* jpegdec;
 
     // Verbose option
     bool enable_verbose;
@@ -96,7 +96,6 @@ public:
     bool save_frame_to_file(v4l2_context_t* ctx, struct v4l2_buffer* buf);
     bool nvbuff_do_clearchroma(int dmabuf_fd);
     bool camera_initialize(v4l2_context_t* ctx);
-    bool display_initialize(v4l2_context_t* ctx);
     bool init_components(v4l2_context_t* ctx);
     bool request_camera_buff(v4l2_context_t* ctx);
     bool request_camera_buff_mmap(v4l2_context_t* ctx);
@@ -114,6 +113,7 @@ public:
 
 private:
     v4l2_context_t ctx_;
+    GPNVJpegDecoder* jpegdec_;
 };
 
 }  // namespace GPlayer
