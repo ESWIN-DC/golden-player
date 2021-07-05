@@ -10,14 +10,14 @@ CPPFLAGS += \
 SRCS := \
 	video_decode_context.cpp \
 	video_encode_context.cpp \
-	video_decoder.cpp \
-	video_encoder.cpp \
+	gp_nvvideo_decoder.cpp \
+	gp_nvvideo_encoder.cpp \
 	camera_recorder.cpp \
-	camera_v4l2.cpp \
+	gp_camera_v4l2.cpp \
 	display.cpp \
-	display_egl.cpp \
+	gp_display_egl.cpp \
 	gp_filesink.cpp \
-	pipeline.cpp \
+	gp_pipeline.cpp \
 	$(wildcard $(CLASS_DIR)/*.cpp)
 
 # argus_camera.cpp \

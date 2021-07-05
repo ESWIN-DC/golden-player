@@ -9,28 +9,29 @@
 
 namespace GPlayer {
 
+enum class BeaderType {
+    Unknown = -1,
+    CameraV4l2Src,
+    FileSink,
+    IMAGE,
+    EGLDisplaySink,
+    NvVideoEncoder,
+    NvVideoDecoder,
+    NvJpegDecoder,
+};
+
 class IBeader {
 public:
-    typedef enum {
-        Unknown = -1,
-        CameraV4l2Src,
-        FileSink,
-        IMAGE,
-        EGLDisplaySink,
-        NVVideoEncoder,
-        NVJpegDecoder,
-    } Type;
-
 public:
-    IBeader() : type_(Unknown) {}
+    IBeader() : type_(BeaderType::Unknown) {}
     virtual std::string GetInfo() const = 0;
 
-    void SetType(Type type) { type_ = type; }
-    Type GetType() const { return type_; }
+    void SetType(BeaderType type) { type_ = type; }
+    BeaderType GetType() const { return type_; }
     virtual void AddBeader(IBeader* module)
     {
         std::lock_guard<std::mutex> guard(handlers_mutex_);
-        if (module->type_ == Unknown) {
+        if (module->type_ == BeaderType::Unknown) {
             SPDLOG_ERROR("BUGBUG: unkown handler: {}", module->GetInfo());
         }
 
@@ -48,7 +49,7 @@ public:
         }
     }
 
-    void RemoveBeader(Type type)
+    void RemoveBeader(BeaderType type)
     {
         std::lock_guard<std::mutex> guard(handlers_mutex_);
         for (auto it = handlers_.begin(); it != handlers_.end(); ++it) {
@@ -59,7 +60,7 @@ public:
         }
     }
 
-    IBeader* GetBeader(Type type)
+    IBeader* GetBeader(BeaderType type)
     {
         std::lock_guard<std::mutex> guard(handlers_mutex_);
         for (auto it = handlers_.begin(); it != handlers_.end(); ++it) {
@@ -71,7 +72,7 @@ public:
     }
 
 private:
-    Type type_;
+    BeaderType type_;
     std::vector<IBeader*> handlers_;
     std::mutex handlers_mutex_;
 };

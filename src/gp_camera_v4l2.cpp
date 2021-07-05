@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/videodev2.h>
 #include <poll.h>
 #include <signal.h>
 #include <spdlog/spdlog.h>
@@ -16,7 +17,7 @@
 #include <fstream>
 #include "nlohmann/json.hpp"
 
-#include "camera_v4l2.h"
+#include "gp_camera_v4l2.h"
 #include "gp_log.h"
 namespace GPlayer {
 
@@ -26,12 +27,12 @@ static bool quit = false;
 
 using namespace std;
 
-std::string CameraV4l2::GetInfo() const
+std::string GPCameraV4l2::GetInfo() const
 {
     return "CameraV4l2";
 }
 
-void CameraV4l2::print_usage(void)
+void GPCameraV4l2::print_usage(void)
 {
     printf(
         "\n\tUsage: camera_v4l2_cuda [OPTIONS]\n\n"
@@ -53,7 +54,7 @@ void CameraV4l2::print_usage(void)
         "<ctrl+c>\n");
 }
 
-bool CameraV4l2::parse_cmdline(v4l2_context_t* ctx, int argc, char** argv)
+bool GPCameraV4l2::parse_cmdline(v4l2_context_t* ctx, int argc, char** argv)
 {
     int c;
 
@@ -117,7 +118,7 @@ bool CameraV4l2::parse_cmdline(v4l2_context_t* ctx, int argc, char** argv)
     return true;
 }
 
-void CameraV4l2::set_defaults(v4l2_context_t* ctx)
+void GPCameraV4l2::set_defaults(v4l2_context_t* ctx)
 {
     memset(ctx, 0, sizeof(v4l2_context_t));
 
@@ -141,7 +142,7 @@ void CameraV4l2::set_defaults(v4l2_context_t* ctx)
     ctx->enable_verbose = false;
 }
 
-NvBufferColorFormat CameraV4l2::get_nvbuff_color_fmt(unsigned int v4l2_pixfmt)
+NvBufferColorFormat GPCameraV4l2::get_nvbuff_color_fmt(unsigned int v4l2_pixfmt)
 {
     unsigned i;
 
@@ -153,8 +154,8 @@ NvBufferColorFormat CameraV4l2::get_nvbuff_color_fmt(unsigned int v4l2_pixfmt)
     return NvBufferColorFormat_Invalid;
 }
 
-bool CameraV4l2::save_frame_to_file(v4l2_context_t* ctx,
-                                    struct v4l2_buffer* buf)
+bool GPCameraV4l2::save_frame_to_file(v4l2_context_t* ctx,
+                                      struct v4l2_buffer* buf)
 {
     int file;
 
@@ -175,7 +176,7 @@ bool CameraV4l2::save_frame_to_file(v4l2_context_t* ctx,
     return true;
 }
 
-bool CameraV4l2::nvbuff_do_clearchroma(int dmabuf_fd)
+bool GPCameraV4l2::nvbuff_do_clearchroma(int dmabuf_fd)
 {
     NvBufferParams params = {0};
     void* sBaseAddr[3] = {NULL};
@@ -212,7 +213,7 @@ bool CameraV4l2::nvbuff_do_clearchroma(int dmabuf_fd)
     return true;
 }
 
-bool CameraV4l2::camera_initialize(v4l2_context_t* ctx)
+bool GPCameraV4l2::camera_initialize(v4l2_context_t* ctx)
 {
     struct v4l2_format fmt;
 
@@ -263,10 +264,10 @@ bool CameraV4l2::camera_initialize(v4l2_context_t* ctx)
     return true;
 }
 
-bool CameraV4l2::init_components(v4l2_context_t* ctx)
+bool GPCameraV4l2::init_components(v4l2_context_t* ctx)
 {
     GPDisplayEGL* display =
-        dynamic_cast<GPDisplayEGL*>(GetBeader(IBeader::EGLDisplaySink));
+        dynamic_cast<GPDisplayEGL*>(GetBeader(BeaderType::EGLDisplaySink));
 
     if (!camera_initialize(ctx))
         ERROR_RETURN("Failed to initialize camera device");
@@ -280,7 +281,7 @@ bool CameraV4l2::init_components(v4l2_context_t* ctx)
     return true;
 }
 
-bool CameraV4l2::request_camera_buff(v4l2_context_t* ctx)
+bool GPCameraV4l2::request_camera_buff(v4l2_context_t* ctx)
 {
     // Request camera v4l2 buffer
     struct v4l2_requestbuffers rb;
@@ -323,7 +324,7 @@ bool CameraV4l2::request_camera_buff(v4l2_context_t* ctx)
     return true;
 }
 
-bool CameraV4l2::request_camera_buff_mmap(v4l2_context_t* ctx)
+bool GPCameraV4l2::request_camera_buff_mmap(v4l2_context_t* ctx)
 {
     // Request camera v4l2 buffer
     struct v4l2_requestbuffers rb;
@@ -366,7 +367,7 @@ bool CameraV4l2::request_camera_buff_mmap(v4l2_context_t* ctx)
     return true;
 }
 
-bool CameraV4l2::prepare_buffers_mjpeg(v4l2_context_t* ctx)
+bool GPCameraV4l2::prepare_buffers_mjpeg(v4l2_context_t* ctx)
 {
     NvBufferCreateParams input_params = {0};
 
@@ -394,7 +395,7 @@ bool CameraV4l2::prepare_buffers_mjpeg(v4l2_context_t* ctx)
     return true;
 }
 
-bool CameraV4l2::prepare_buffers(v4l2_context_t* ctx)
+bool GPCameraV4l2::prepare_buffers(v4l2_context_t* ctx)
 {
     NvBufferCreateParams input_params = {0};
 
@@ -456,7 +457,7 @@ bool CameraV4l2::prepare_buffers(v4l2_context_t* ctx)
     return true;
 }
 
-bool CameraV4l2::start_stream(v4l2_context_t* ctx)
+bool GPCameraV4l2::start_stream(v4l2_context_t* ctx)
 {
     enum v4l2_buf_type type;
 
@@ -472,21 +473,21 @@ bool CameraV4l2::start_stream(v4l2_context_t* ctx)
     return true;
 }
 
-void CameraV4l2::signal_handle(int signum)
+void GPCameraV4l2::signal_handle(int signum)
 {
     printf("Quit due to exit command from user!\n");
     quit = true;
 }
 
-bool CameraV4l2::start_capture(v4l2_context_t* ctx)
+bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
 {
     struct sigaction sig_action;
     struct pollfd fds[1];
     NvBufferTransformParams transParams;
-    GPNVJpegDecoder* jpeg_decoder =
-        dynamic_cast<GPNVJpegDecoder*>(GetBeader(IBeader::NVJpegDecoder));
+    GPNvJpegDecoder* jpeg_decoder =
+        dynamic_cast<GPNvJpegDecoder*>(GetBeader(BeaderType::NvJpegDecoder));
     GPDisplayEGL* display =
-        dynamic_cast<GPDisplayEGL*>(GetBeader(IBeader::EGLDisplaySink));
+        dynamic_cast<GPDisplayEGL*>(GetBeader(BeaderType::EGLDisplaySink));
 
     // Ensure a clean shutdown if user types <ctrl+c>
     sig_action.sa_handler = signal_handle;
@@ -544,7 +545,7 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
                 save_frame_to_file(ctx, &v4l2_buf);
 
             GPFileSink* buffer_handler =
-                dynamic_cast<GPFileSink*>(GetBeader(IBeader::FileSink));
+                dynamic_cast<GPFileSink*>(GetBeader(BeaderType::FileSink));
             if (buffer_handler) {
                 GPBuffer gpbuffer(ctx->g_buff[v4l2_buf.index].start,
                                   ctx->g_buff[v4l2_buf.index].size);
@@ -588,17 +589,16 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
                     NvBufferTransform(fd, ctx->render_dmabuf_fd, &transParams))
                     ERROR_RETURN("Failed to convert the buffer");
             }
-            else if (ctx->cam_pixfmt == V4L2_PIX_FMT_H264) {
-                // encoder
-                // IBeader* bead = GetBeader(IBeader::Encoder);
-                // if (bead) {
-                //     // TODO:
-                //     GPEGLImage image;
-                //     GPData data(&image);
-                //     bead->Process(&data);
-                // }
-            }
-            else if (ctx->cam_pixfmt == V4L2_PIX_FMT_H265) {
+            else if (ctx->cam_pixfmt == V4L2_PIX_FMT_H264 ||
+                     ctx->cam_pixfmt == V4L2_PIX_FMT_H265 ||
+                     ctx->cam_pixfmt == V4L2_PIX_FMT_VP8 ||
+                     ctx->cam_pixfmt == V4L2_PIX_FMT_VP9 ||
+                     ctx->cam_pixfmt == V4L2_PIX_FMT_MPEG2 ||
+                     ctx->cam_pixfmt == V4L2_PIX_FMT_MPEG4) {
+                IBeader* decoder = GetBeader(BeaderType::NvVideoDecoder);
+                if (decoder) {
+                    // decoder->Process();
+                }
             }
             else {  // raw data
                 if (ctx->capture_dmabuf) {
@@ -627,12 +627,6 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
 
             // Display the camera buffer
             if (display) {
-                // GPEGLImage image;
-                // image.enable_cuda = ctx->enable_cuda;
-                // image.render_dmabuf_fd = ctx->render_dmabuf_fd;
-                // GPData data(&image);
-                // bead->Process(&data);
-
                 display->Display(ctx->enable_cuda, ctx->render_dmabuf_fd);
             }
 
@@ -656,7 +650,7 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
     return true;
 }
 
-bool CameraV4l2::stop_stream(v4l2_context_t* ctx)
+bool GPCameraV4l2::stop_stream(v4l2_context_t* ctx)
 {
     enum v4l2_buf_type type;
 
@@ -670,12 +664,12 @@ bool CameraV4l2::stop_stream(v4l2_context_t* ctx)
     return true;
 }
 
-void CameraV4l2::Process(GPData* data)
+void GPCameraV4l2::Process(GPData* data)
 {
     main(0, NULL);
 }
 
-int CameraV4l2::main(int argc, char* argv[])
+int GPCameraV4l2::main(int argc, char* argv[])
 {
     v4l2_context_t& ctx = ctx_;
     int error = 0;
@@ -715,7 +709,7 @@ cleanup:
     // if (ctx.egl_display && !eglTerminate(ctx.egl_display))
     //     printf("Failed to terminate EGL display connection\n");
 
-    RemoveBeader(EGLDisplaySink);
+    RemoveBeader(BeaderType::EGLDisplaySink);
 
     if (ctx.g_buff != NULL) {
         for (unsigned i = 0; i < V4L2_BUFFERS_NUM; i++) {
@@ -732,22 +726,22 @@ cleanup:
     return -error;
 }
 
-int CameraV4l2::SaveConfiguration(const std::string& configuration)
+int GPCameraV4l2::SaveConfiguration(const std::string& configuration)
 {
     using nlohmann::json;
 
-    std::ofstream o("camerav4l2.json");
+    std::ofstream o("GPCameraV4l2.json");
     json j;
 
     o << j;
 }
 
-int CameraV4l2::LoadConfiguration()
+int GPCameraV4l2::LoadConfiguration()
 {
     using nlohmann::json;
 
     v4l2_context_t* ctx = &ctx_;
-    std::ifstream i("camerav4l2.json");
+    std::ifstream i("GPCameraV4l2.json");
     json j;
     i >> j;
 

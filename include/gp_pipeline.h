@@ -1,6 +1,6 @@
 
-#ifndef __PIPELINE__
-#define __PIPELINE__
+#ifndef __GPPIPELINE__
+#define __GPPIPELINE__
 
 #include <list>
 #include <memory>
@@ -9,10 +9,10 @@
 
 namespace GPlayer {
 
-class Pipeline {
+class GPPipeline {
 private:
 public:
-    Pipeline();
+    GPPipeline();
     bool Add(const std::shared_ptr<IBeader>& task);
     bool Insert(const std::shared_ptr<IBeader>& task);
     bool Tee(const std::shared_ptr<IBeader>& task);
@@ -26,4 +26,4 @@ private:
 
 }  // namespace GPlayer
 
-#endif  // __PIPELINE__
+#endif  // __GPPIPELINE__

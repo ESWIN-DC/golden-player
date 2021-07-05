@@ -1,16 +1,16 @@
-#ifndef __NVJPEG_DECODER__
-#define __NVJPEG_DECODER__
+#ifndef __GPNVJPEG_DECODER__
+#define __GPNVJPEG_DECODER__
 
 #include "beader.h"
 
 #include "NvJpegDecoder.h"
 
 namespace GPlayer {
-class GPNVJpegDecoder : public IBeader {
+class GPNvJpegDecoder : public IBeader {
 public:
-    GPNVJpegDecoder()
+    GPNvJpegDecoder()
     {
-        SetType(IBeader::NVJpegDecoder);
+        SetType(BeaderType::NvJpegDecoder);
         jpegdec_ = NvJPEGDecoder::createJPEGDecoder("jpegdec");
     }
     std::string GetInfo() const { return "NVJpegDecoder"; }
@@ -62,4 +62,4 @@ private:
 
 }  // namespace GPlayer
 
-#endif  // __NVJPEG_DECODER__
+#endif  // __GPNVJPEG_DECODER__

@@ -17,7 +17,7 @@
 
 #include <nvbuf_utils.h>
 
-#include "video_encoder.h"
+#include "gp_nvvideo_encoder.h"
 
 namespace GPlayer {
 
@@ -39,25 +39,26 @@ namespace GPlayer {
 
 using namespace std;
 
-VideoEncoder::VideoEncoder(const shared_ptr<VideoEncodeContext_T> context)
+GPNvVideoEncoder::GPNvVideoEncoder(
+    const shared_ptr<VideoEncodeContext_T> context)
 {
-    SetType(IBeader::NVVideoEncoder);
+    SetType(BeaderType::NvVideoEncoder);
     ctx_ = context;
 
     encode_thread_ = std::thread(encodeProc, this);
 }
 
-VideoEncoder::~VideoEncoder()
+GPNvVideoEncoder::~GPNvVideoEncoder()
 {
     encode_thread_.join();
 }
 
-std::string VideoEncoder::GetInfo() const
+std::string GPNvVideoEncoder::GetInfo() const
 {
-    return "VideoEncoder";
+    return "GPNvVideoEncoder";
 }
 
-void VideoEncoder::Process(GPData* data)
+void GPNvVideoEncoder::Process(GPData* data)
 {
     std::lock_guard<std::mutex> guard(frames_mutex_);
 
@@ -66,20 +67,20 @@ void VideoEncoder::Process(GPData* data)
     sem_post(&ctx_->pollthread_sema);
 }
 
-void VideoEncoder::Abort()
+void GPNvVideoEncoder::Abort()
 {
     VideoEncodeContext_T* ctx = ctx_.get();
     ctx->got_error = true;
     ctx->enc->abort();
 }
 
-bool VideoEncoder::encoder_capture_plane_dq_callback(
+bool GPNvVideoEncoder::encoder_capture_plane_dq_callback(
     struct v4l2_buffer* v4l2_buf,
     NvBuffer* buffer,
     NvBuffer* shared_buffer,
     void* arg)
 {
-    VideoEncoder* videoEncoder = static_cast<VideoEncoder*>(arg);
+    GPNvVideoEncoder* videoEncoder = static_cast<GPNvVideoEncoder*>(arg);
     VideoEncodeContext_T* ctx = videoEncoder->ctx_.get();
     NvVideoEncoder* enc = ctx->enc;
     pthread_setname_np(pthread_self(), "EncCapPlane");
@@ -120,8 +121,8 @@ bool VideoEncoder::encoder_capture_plane_dq_callback(
                                    buffer->planes[0].bytesused);
 
     // videoEncoder->write_encoder_output_frame(ctx->out_file, buffer);
-    GPFileSink* handler =
-        dynamic_cast<GPFileSink*>(videoEncoder->GetBeader(IBeader::FileSink));
+    GPFileSink* handler = dynamic_cast<GPFileSink*>(
+        videoEncoder->GetBeader(BeaderType::FileSink));
     if (handler) {
         GPBuffer gpbuffer(buffer->planes[0].data, buffer->planes[0].bytesused);
         GPData data(&gpbuffer);
@@ -227,7 +228,7 @@ bool VideoEncoder::encoder_capture_plane_dq_callback(
     return true;
 }
 
-int VideoEncoder::get_next_parsed_pair(char* id, uint32_t* value)
+int GPNvVideoEncoder::get_next_parsed_pair(char* id, uint32_t* value)
 {
     VideoEncodeContext_T* ctx = ctx_.get();
     char charval;
@@ -252,7 +253,7 @@ int VideoEncoder::get_next_parsed_pair(char* id, uint32_t* value)
     return charval;
 }
 
-int VideoEncoder::set_runtime_params()
+int GPNvVideoEncoder::set_runtime_params()
 {
     VideoEncodeContext_T* ctx = ctx_.get();
     char charval;
@@ -338,7 +339,7 @@ err:
     return -1;
 }
 
-int VideoEncoder::get_next_runtime_param_change_frame()
+int GPNvVideoEncoder::get_next_runtime_param_change_frame()
 {
     VideoEncodeContext_T* ctx = ctx_.get();
     char charval;
@@ -360,7 +361,7 @@ err:
     return -1;
 }
 
-void VideoEncoder::set_defaults()
+void GPNvVideoEncoder::set_defaults()
 {
     VideoEncodeContext_T* ctx = ctx_.get();
     memset(ctx, 0, sizeof(VideoEncodeContext_T));
@@ -407,7 +408,7 @@ void VideoEncoder::set_defaults()
     ctx->blocking_mode = 1;
 }
 
-void VideoEncoder::populate_roi_Param(
+void GPNvVideoEncoder::populate_roi_Param(
     std::ifstream* stream,
     v4l2_enc_frame_ROI_params* VEnc_ROI_params)
 {
@@ -442,7 +443,7 @@ void VideoEncoder::populate_roi_Param(
     }
 }
 
-void VideoEncoder::populate_ext_rps_ctrl_Param(
+void GPNvVideoEncoder::populate_ext_rps_ctrl_Param(
     std::ifstream* stream,
     v4l2_enc_frame_ext_rps_ctrl_params* VEnc_ext_rps_ctrl_params)
 {
@@ -489,7 +490,7 @@ restart:
     }
 }
 
-int VideoEncoder::setup_output_dmabuf(uint32_t num_buffers)
+int GPNvVideoEncoder::setup_output_dmabuf(uint32_t num_buffers)
 {
     VideoEncodeContext_T* ctx = ctx_.get();
     int ret = 0;
@@ -527,7 +528,7 @@ int VideoEncoder::setup_output_dmabuf(uint32_t num_buffers)
     return ret;
 }
 
-void VideoEncoder::populate_ext_rate_ctrl_Param(
+void GPNvVideoEncoder::populate_ext_rate_ctrl_Param(
     std::ifstream* stream,
     v4l2_enc_frame_ext_rate_ctrl_params* VEnc_ext_rate_ctrl_params)
 {
@@ -549,9 +550,9 @@ restart:
     }
 }
 
-void VideoEncoder::populate_gdr_Param(std::ifstream* stream,
-                                      uint32_t* start_frame_num,
-                                      uint32_t* gdr_num_frames)
+void GPNvVideoEncoder::populate_gdr_Param(std::ifstream* stream,
+                                          uint32_t* start_frame_num,
+                                          uint32_t* gdr_num_frames)
 {
     if (stream->eof()) {
         *start_frame_num = 0xFFFFFFFF;
@@ -563,9 +564,9 @@ void VideoEncoder::populate_gdr_Param(std::ifstream* stream,
     }
 }
 
-void* VideoEncoder::encoder_pollthread_fcn(void* arg)
+void* GPNvVideoEncoder::encoder_pollthread_fcn(void* arg)
 {
-    VideoEncoder* videoEncoder = static_cast<VideoEncoder*>(arg);
+    GPNvVideoEncoder* videoEncoder = static_cast<GPNvVideoEncoder*>(arg);
     VideoEncodeContext_T* ctx = videoEncoder->ctx_.get();
     v4l2_ctrl_video_device_poll devicepoll;
 
@@ -598,7 +599,7 @@ void* VideoEncoder::encoder_pollthread_fcn(void* arg)
     return NULL;
 }
 
-int VideoEncoder::encoder_proc_nonblocking(bool eos)
+int GPNvVideoEncoder::encoder_proc_nonblocking(bool eos)
 {
     // In non-blocking mode, we will have this function do below things:
     // Issue signal to PollThread so it starts Poll and wait until we are
@@ -838,7 +839,7 @@ int VideoEncoder::encoder_proc_nonblocking(bool eos)
     return 0;
 }
 
-int VideoEncoder::encoder_proc_blocking(bool eos)
+int GPNvVideoEncoder::encoder_proc_blocking(bool eos)
 {
     VideoEncodeContext_T* ctx = ctx_.get();
     int ret = 0;
@@ -1005,7 +1006,7 @@ cleanup:
     return -1;
 }
 
-int VideoEncoder::encode_proc()
+int GPNvVideoEncoder::encode_proc()
 {
     VideoEncodeContext_T* ctx = ctx_.get();
     int ret = 0;
@@ -1650,7 +1651,7 @@ cleanup:
     return -error;
 }
 
-int VideoEncoder::ReadFrame(NvBuffer& buffer)
+int GPNvVideoEncoder::ReadFrame(NvBuffer& buffer)
 {
     uint32_t i, j;
     char* data;
@@ -1680,12 +1681,12 @@ int VideoEncoder::ReadFrame(NvBuffer& buffer)
     return 0;
 }
 
-int VideoEncoder::encodeProc(VideoEncoder* encoder)
+int GPNvVideoEncoder::encodeProc(GPNvVideoEncoder* encoder)
 {
     return encoder->encode_proc();
 }
 
-int VideoEncoder::SaveConfiguration(const std::string& configuration)
+int GPNvVideoEncoder::SaveConfiguration(const std::string& configuration)
 {
     using nlohmann::json;
 
@@ -1695,7 +1696,7 @@ int VideoEncoder::SaveConfiguration(const std::string& configuration)
     o << j;
 }
 
-int VideoEncoder::LoadConfiguration()
+int GPNvVideoEncoder::LoadConfiguration()
 {
     using nlohmann::json;
 

@@ -14,8 +14,8 @@
 
 #include "beader.h"
 
-#include "nvjpeg_decoder.h"
-#include "video_encoder.h"
+#include "gp_nvjpeg_decoder.h"
+#include "gp_nvvideo_encoder.h"
 
 namespace GPlayer {
 
@@ -69,14 +69,14 @@ typedef struct {
     NvBufferColorFormat nvbuff_color;
 } nv_color_fmt;
 
-class CameraV4l2 : public IBeader {
+class GPCameraV4l2 : public IBeader {
 private:
     std::vector<nv_color_fmt> nvcolor_fmt_;
 
 public:
-    CameraV4l2()
+    GPCameraV4l2()
     {
-        SetType(CameraV4l2Src);
+        SetType(BeaderType::CameraV4l2Src);
 
         nvcolor_fmt_ = {
             // TODO add more pixel format mapping
@@ -115,7 +115,7 @@ public:
 
 private:
     v4l2_context_t ctx_;
-    GPNVJpegDecoder* jpegdec_;
+    GPNvJpegDecoder* jpegdec_;
 };
 
 }  // namespace GPlayer

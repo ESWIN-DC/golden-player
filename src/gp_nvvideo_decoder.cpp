@@ -58,22 +58,24 @@ namespace GPlayer {
 
 using namespace std;
 
-VideoDecoder::VideoDecoder(const shared_ptr<VideoDecodeContext_T> context)
+GPNvVideoDecoder::GPNvVideoDecoder(
+    const shared_ptr<VideoDecodeContext_T> context)
 {
     ctx_ = context;
+    SetType(BeaderType::NvVideoEncoder);
 }
 
-std::string VideoDecoder::GetInfo() const
+std::string GPNvVideoDecoder::GetInfo() const
 {
-    return "VideoDecoder";
+    return "NvVideoDecoder";
 }
 
-void VideoDecoder::Process(GPData* data) {}
+void GPNvVideoDecoder::Process(GPData* data) {}
 
-int VideoDecoder::read_decoder_input_nalu(ifstream* stream,
-                                          NvBuffer* buffer,
-                                          char* parse_buffer,
-                                          streamsize parse_buffer_size)
+int GPNvVideoDecoder::read_decoder_input_nalu(ifstream* stream,
+                                              NvBuffer* buffer,
+                                              char* parse_buffer,
+                                              streamsize parse_buffer_size)
 {
     // Length is the size of the buffer in bytes
     char* buffer_ptr = (char*)buffer->planes[0].data;
@@ -156,7 +158,8 @@ int VideoDecoder::read_decoder_input_nalu(ifstream* stream,
     return -1;
 }
 
-int VideoDecoder::read_decoder_input_chunk(ifstream* stream, NvBuffer* buffer)
+int GPNvVideoDecoder::read_decoder_input_chunk(ifstream* stream,
+                                               NvBuffer* buffer)
 {
     // Length is the size of the buffer in bytes
     streamsize bytes_to_read = MIN(CHUNK_SIZE, buffer->planes[0].length);
@@ -172,7 +175,7 @@ int VideoDecoder::read_decoder_input_chunk(ifstream* stream, NvBuffer* buffer)
     return 0;
 }
 
-int VideoDecoder::read_vpx_decoder_input_chunk(NvBuffer* buffer)
+int GPNvVideoDecoder::read_vpx_decoder_input_chunk(NvBuffer* buffer)
 {
     ifstream* stream = ctx_->in_file[0];
     int Framesize;
@@ -213,7 +216,7 @@ int VideoDecoder::read_vpx_decoder_input_chunk(NvBuffer* buffer)
     return 0;
 }
 
-void VideoDecoder::Abort()
+void GPNvVideoDecoder::Abort()
 {
     ctx_->got_error = true;
     ctx_->dec->abort();
@@ -226,7 +229,7 @@ void VideoDecoder::Abort()
 }
 
 #ifndef USE_NVBUF_TRANSFORM_API
-bool VideoDecoder::conv0_output_dqbuf_thread_callback(
+bool GPNvVideoDecoder::conv0_output_dqbuf_thread_callback(
     struct v4l2_buffer* v4l2_buf,
     NvBuffer* buffer,
     NvBuffer* shared_buffer,
@@ -271,7 +274,7 @@ bool VideoDecoder::conv0_output_dqbuf_thread_callback(
     return true;
 }
 
-bool VideoDecoder::conv0_capture_dqbuf_thread_callback(
+bool GPNvVideoDecoder::conv0_capture_dqbuf_thread_callback(
     struct v4l2_buffer* v4l2_buf,
     NvBuffer* buffer,
     NvBuffer* shared_buffer,
@@ -306,7 +309,7 @@ bool VideoDecoder::conv0_capture_dqbuf_thread_callback(
 }
 #endif
 
-int VideoDecoder::report_input_metadata(
+int GPNvVideoDecoder::report_input_metadata(
     v4l2_ctrl_videodec_inputbuf_metadata* input_metadata)
 {
     int ret = -1;
@@ -338,7 +341,7 @@ int VideoDecoder::report_input_metadata(
     return ret;
 }
 
-void VideoDecoder::report_metadata(
+void GPNvVideoDecoder::report_metadata(
     v4l2_ctrl_videodec_outputbuf_metadata* metadata)
 {
     uint32_t frame_num = ctx_->dec->capture_plane.getTotalDequeuedBuffers() - 1;
@@ -404,7 +407,7 @@ void VideoDecoder::report_metadata(
 }
 
 #ifndef USE_NVBUF_TRANSFORM_API
-int VideoDecoder::sendEOStoConverter()
+int GPNvVideoDecoder::sendEOStoConverter()
 {
     // Check if converter is running
     if (ctx_->conv->output_plane.getStreamStatus()) {
@@ -433,7 +436,7 @@ int VideoDecoder::sendEOStoConverter()
 }
 #endif
 
-void VideoDecoder::query_and_set_capture()
+void GPNvVideoDecoder::query_and_set_capture()
 {
     NvVideoDecoder* dec = ctx_->dec;
     struct v4l2_format format;
@@ -737,7 +740,7 @@ error:
     }
 }
 
-void* VideoDecoder::decoder_pollthread_fcn(void* arg)
+void* GPNvVideoDecoder::decoder_pollthread_fcn(void* arg)
 {
     VideoDecodeContext_T* ctx = static_cast<VideoDecodeContext_T*>(arg);
     v4l2_ctrl_video_device_poll devicepoll;
@@ -771,9 +774,9 @@ void* VideoDecoder::decoder_pollthread_fcn(void* arg)
     return NULL;
 }
 
-void* VideoDecoder::dec_capture_loop_fcn(void* arg)
+void* GPNvVideoDecoder::dec_capture_loop_fcn(void* arg)
 {
-    VideoDecoder* videoDecoder = (VideoDecoder*)arg;
+    GPNvVideoDecoder* videoDecoder = (GPNvVideoDecoder*)arg;
     std::shared_ptr<GPlayer::VideoDecodeContext_T> ctx = videoDecoder->ctx_;
     NvVideoDecoder* dec = ctx->dec;
     struct v4l2_event ev;
@@ -985,7 +988,7 @@ void* VideoDecoder::dec_capture_loop_fcn(void* arg)
     return NULL;
 }
 
-void VideoDecoder::set_defaults()
+void GPNvVideoDecoder::set_defaults()
 {
     memset(ctx_.get(), 0, sizeof(context_t));
     ctx_->fullscreen = false;
@@ -1019,10 +1022,10 @@ void VideoDecoder::set_defaults()
     pthread_cond_init(&ctx_->queue_cond, NULL);
 }
 
-bool VideoDecoder::decoder_proc_nonblocking(bool eos,
-                                            uint32_t current_file,
-                                            int current_loop,
-                                            char* nalu_parse_buffer)
+bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos,
+                                                uint32_t current_file,
+                                                int current_loop,
+                                                char* nalu_parse_buffer)
 {
     // In non-blocking mode, we will have this function do below things:
     // Issue signal to PollThread so it starts Poll and wait until we are
@@ -1294,6 +1297,8 @@ bool VideoDecoder::decoder_proc_nonblocking(bool eos,
                     if (ctx_->out_pixfmt != 1) {
                         dump_dmabuf(ctx_->dst_dma_fd, 2, ctx_->out_file);
                     }
+
+                    //
                 }
                 if (!ctx_->stats && !ctx_->disable_rendering) {
                     ctx_->renderer->render(ctx_->dst_dma_fd);
@@ -1318,10 +1323,10 @@ bool VideoDecoder::decoder_proc_nonblocking(bool eos,
     return eos;
 }
 
-bool VideoDecoder::decoder_proc_blocking(bool eos,
-                                         uint32_t current_file,
-                                         int current_loop,
-                                         char* nalu_parse_buffer)
+bool GPNvVideoDecoder::decoder_proc_blocking(bool eos,
+                                             uint32_t current_file,
+                                             int current_loop,
+                                             char* nalu_parse_buffer)
 {
     // Since all the output plane buffers have been queued, we first need to
     // dequeue a buffer from output plane before we can read new data into it
@@ -1425,7 +1430,7 @@ bool VideoDecoder::decoder_proc_blocking(bool eos,
     return eos;
 }
 
-int VideoDecoder::decode_proc(int argc, char* argv[])
+int GPNvVideoDecoder::decode_proc(int argc, char* argv[])
 {
     int ret = 0;
     int error = 0;

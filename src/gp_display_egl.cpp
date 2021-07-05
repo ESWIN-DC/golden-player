@@ -19,14 +19,14 @@
 
 #include "NvJpegDecoder.h"
 
-#include "display_egl.h"
 #include "dma_buffer.h"
+#include "gp_display_egl.h"
 
 namespace GPlayer {
 
 GPDisplayEGL::GPDisplayEGL() : egl_display_(EGL_NO_DISPLAY)
 {
-    SetType(IBeader::EGLDisplaySink);
+    SetType(BeaderType::EGLDisplaySink);
 }
 
 GPDisplayEGL::~GPDisplayEGL()

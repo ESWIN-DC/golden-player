@@ -5,7 +5,9 @@ namespace GPlayer {
 GPFileSink::GPFileSink(std::string filepath) : filepath_(filepath)
 {
     outfile_ = new std::ofstream(filepath);
-    SetType(FileSink);
+    SetType(BeaderType::FileSink);
+
+    SPDLOG_INFO("Save file to path: {}", filepath);
 }
 
 GPFileSink::~GPFileSink()

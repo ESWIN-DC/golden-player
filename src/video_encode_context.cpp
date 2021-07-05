@@ -2,7 +2,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
-#include "video_encoder.h"
+
+#include "gp_nvvideo_encoder.h"
 
 namespace GPlayer {
 

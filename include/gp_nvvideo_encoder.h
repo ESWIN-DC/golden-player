@@ -43,13 +43,13 @@ namespace GPlayer {
 
 using namespace std;
 
-class VideoEncoder : public IBeader {
+class GPNvVideoEncoder : public IBeader {
 private:
-    VideoEncoder();
+    GPNvVideoEncoder();
 
 public:
-    VideoEncoder(const shared_ptr<VideoEncodeContext_T> context);
-    ~VideoEncoder();
+    GPNvVideoEncoder(const shared_ptr<VideoEncodeContext_T> context);
+    ~GPNvVideoEncoder();
 
     std::string GetInfo() const;
     void Process(GPData* data);
@@ -159,7 +159,7 @@ public:
     int encoder_proc_nonblocking(bool eos);
     int encoder_proc_blocking(bool eos);
     int encode_proc();
-    static int encodeProc(VideoEncoder* encoder);
+    static int encodeProc(GPNvVideoEncoder* encoder);
     int ReadFrame(NvBuffer& buffer);
 
     int SaveConfiguration(const std::string& configuration);
@@ -170,7 +170,7 @@ private:
     std::vector<GPData*> frames_;
     std::mutex frames_mutex_;
     std::thread encode_thread_;
-};  // class VideoEncoder
+};  // class GPNvVideoEncoder
 
 }  // namespace GPlayer
 

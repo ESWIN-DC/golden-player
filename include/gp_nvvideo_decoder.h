@@ -1,5 +1,5 @@
-#ifndef __DECODER__
-#define __DECODER__
+#ifndef __GP_NVVIDEO_DECODER__
+#define __GP_NVVIDEO_DECODER__
 
 #include <errno.h>
 #include <fcntl.h>
@@ -61,12 +61,12 @@ namespace GPlayer {
 
 using namespace std;
 
-class VideoDecoder : public IBeader {
+class GPNvVideoDecoder : public IBeader {
 private:
-    VideoDecoder();
+    GPNvVideoDecoder();
 
 public:
-    VideoDecoder(const shared_ptr<VideoDecodeContext_T> context);
+    GPNvVideoDecoder(const shared_ptr<VideoDecodeContext_T> context);
 
     std::string GetInfo() const;
 
@@ -128,4 +128,4 @@ private:
 
 };  // namespace GPlayer
 
-#endif  // __DECODER__
+#endif  // __GP_NVVIDEO_DECODER__

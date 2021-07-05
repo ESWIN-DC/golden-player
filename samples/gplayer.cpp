@@ -24,18 +24,25 @@ int main(int argc, char* argv[])
         std::make_shared<VideoDecodeContext_T>();
     shared_ptr<VideoEncodeContext_T> econtext =
         std::make_shared<VideoEncodeContext_T>();
-    shared_ptr<VideoDecoder> decoder = std::make_shared<VideoDecoder>(dcontext);
-    shared_ptr<VideoEncoder> encoder = std::make_shared<VideoEncoder>(econtext);
+    shared_ptr<GPNvVideoDecoder> decoder =
+        std::make_shared<GPNvVideoDecoder>(dcontext);
+    shared_ptr<GPNvVideoEncoder> encoder =
+        std::make_shared<GPNvVideoEncoder>(econtext);
     shared_ptr<CameraRecorder> recorder = std::make_shared<CameraRecorder>();
-    shared_ptr<GPNVJpegDecoder> nvjpegdecoder =
-        std::make_shared<GPNVJpegDecoder>();
-    shared_ptr<CameraV4l2> v4l2 = std::make_shared<CameraV4l2>();
+    shared_ptr<GPNvJpegDecoder> nvjpegdecoder =
+        std::make_shared<GPNvJpegDecoder>();
+    shared_ptr<GPCameraV4l2> v4l2 = std::make_shared<GPCameraV4l2>();
     shared_ptr<GPDisplayEGL> egl = std::make_shared<GPDisplayEGL>();
-    shared_ptr<GPFileSink> file =
+    shared_ptr<GPFileSink> h264file =
         std::make_shared<GPFileSink>(std::string("try001.h264"));
+    shared_ptr<GPFileSink> orignfile =
+        std::make_shared<GPFileSink>(std::string("try001.orgin"));
 
-    encoder->AddBeader(file.get());
+    encoder->AddBeader(h264file.get());
+
+    // v4l2->AddBeader(orignfile.get());
     v4l2->AddBeader(nvjpegdecoder.get());
+
     v4l2->AddBeader(egl.get());
 
     v4l2->AddBeader(encoder.get());
@@ -46,7 +53,7 @@ int main(int argc, char* argv[])
 
     ret = v4l2->main(argc, argv);
 
-    Pipeline* pipeline = new Pipeline();
+    GPPipeline* pipeline = new GPPipeline();
     pipeline->Add(v4l2);
     pipeline->Add(recorder);
     pipeline->Add(encoder);

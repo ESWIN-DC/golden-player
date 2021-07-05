@@ -1,5 +1,5 @@
-#ifndef __DISPLAY_EGL___
-#define __DISPLAY_EGL___
+#ifndef __GPDISPLAY_EGL___
+#define __GPDISPLAY_EGL___
 
 #include "beader.h"
 namespace GPlayer {
@@ -41,4 +41,4 @@ private:
 
 }  // namespace GPlayer
 
-#endif  // __DISPLAY_EGL___
+#endif  // __GPDISPLAY_EGL___
