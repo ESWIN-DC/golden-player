@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "gp_data.h"
-#include "gp_error.h"
+#include "gp_log.h"
 
 namespace GPlayer {
 
@@ -13,11 +13,12 @@ class IBeader {
 public:
     typedef enum {
         Unknown = -1,
+        CameraV4l2Src,
         FileSink,
         IMAGE,
-        Display,
-        Encoder,
-        JpegDecoder,
+        EGLDisplaySink,
+        NVVideoEncoder,
+        NVJpegDecoder,
     } Type;
 
 public:
@@ -30,7 +31,7 @@ public:
     {
         std::lock_guard<std::mutex> guard(handlers_mutex_);
         if (module->type_ == Unknown) {
-            SPDLOG_ERROR("BUGBUG: unkown handler");
+            SPDLOG_ERROR("BUGBUG: unkown handler: {}", module->GetInfo());
         }
 
         handlers_.push_back(module);

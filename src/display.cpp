@@ -8,7 +8,7 @@
 #include <fstream>
 #include <iostream>
 
-#include <spdlog/spdlog.h>
+#include "gp_log.h"
 
 #include "Error.h"
 #include "Thread.h"

@@ -41,6 +41,7 @@ using namespace std;
 
 VideoEncoder::VideoEncoder(const shared_ptr<VideoEncodeContext_T> context)
 {
+    SetType(IBeader::NVVideoEncoder);
     ctx_ = context;
 
     encode_thread_ = std::thread(encodeProc, this);

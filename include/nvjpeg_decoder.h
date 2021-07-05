@@ -8,12 +8,12 @@
 namespace GPlayer {
 class GPNVJpegDecoder : public IBeader {
 public:
-    std::string GetInfo() const { return "NVJpegDecoder"; }
-
-    void initialize(uint32_t width, uint32_t height)
+    GPNVJpegDecoder()
     {
+        SetType(IBeader::NVJpegDecoder);
         jpegdec_ = NvJPEGDecoder::createJPEGDecoder("jpegdec");
     }
+    std::string GetInfo() const { return "NVJpegDecoder"; }
 
     // bool prepare_buffers_mjpeg(uint32_t width, uint32_t height)
     // {

@@ -11,7 +11,7 @@
 #include <fstream>
 #include <iostream>
 
-#include "gp_error.h"
+#include "gp_log.h"
 
 #include "Thread.h"
 #include "beader.h"

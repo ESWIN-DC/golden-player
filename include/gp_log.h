@@ -1,5 +1,5 @@
-#ifndef __GP_ERROR_H__
-#define __GP_ERROR_H__
+#ifndef __GP_LOG_H__
+#define __GP_LOG_H__
 
 #include <spdlog/spdlog.h>
 
@@ -20,19 +20,17 @@
         }                                        \
     } while (0);
 
-#define CHECK_ERROR(cond, label, fmt, ...)                             \
-    if (!cond) {                                                       \
-        error = 1;                                                     \
-        SPDLOG_ERROR("ERROR: {}(): (line:{}) " fmt "\n", __FUNCTION__, \
-                     __LINE__, ##__VA_ARGS__);                         \
-        goto label;                                                    \
+#define CHECK_ERROR(cond, label, fmt, ...)     \
+    if (!cond) {                               \
+        error = 1;                             \
+        SPDLOG_ERROR(fmt "\n", ##__VA_ARGS__); \
+        goto label;                            \
     }
 
-#define ERROR_RETURN(fmt, ...)                                         \
-    do {                                                               \
-        SPDLOG_ERROR("ERROR: {}(): (line:{}) " fmt "\n", __FUNCTION__, \
-                     __LINE__, ##__VA_ARGS__);                         \
-        return false;                                                  \
+#define ERROR_RETURN(fmt, ...)                 \
+    do {                                       \
+        SPDLOG_ERROR(fmt "\n", ##__VA_ARGS__); \
+        return false;                          \
     } while (0)
 
 #define GP_ERROR(_file, _func, _line, _str, ...)                          \
@@ -107,4 +105,4 @@
         }                                                                \
     } while (0)
 
-#endif  // __GP_ERROR_H__
+#endif  // __GP_LOG_H__

@@ -2,7 +2,7 @@
 #include <fstream>
 #include <iostream>
 
-#include <spdlog/spdlog.h>
+#include "gp_log.h"
 
 #include "camera_recorder.h"
 #include "dma_buffer.h"

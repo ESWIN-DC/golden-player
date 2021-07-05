@@ -17,8 +17,7 @@
 #include "nlohmann/json.hpp"
 
 #include "camera_v4l2.h"
-#include "gp_error.h"
-
+#include "gp_log.h"
 namespace GPlayer {
 
 #define MJPEG_EOS_SEARCH_SIZE 4096
@@ -267,7 +266,7 @@ bool CameraV4l2::camera_initialize(v4l2_context_t* ctx)
 bool CameraV4l2::init_components(v4l2_context_t* ctx)
 {
     GPDisplayEGL* display =
-        dynamic_cast<GPDisplayEGL*>(GetBeader(IBeader::Display));
+        dynamic_cast<GPDisplayEGL*>(GetBeader(IBeader::EGLDisplaySink));
 
     if (!camera_initialize(ctx))
         ERROR_RETURN("Failed to initialize camera device");
@@ -485,9 +484,9 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
     struct pollfd fds[1];
     NvBufferTransformParams transParams;
     GPNVJpegDecoder* jpeg_decoder =
-        dynamic_cast<GPNVJpegDecoder*>(GetBeader(IBeader::JpegDecoder));
+        dynamic_cast<GPNVJpegDecoder*>(GetBeader(IBeader::NVJpegDecoder));
     GPDisplayEGL* display =
-        dynamic_cast<GPDisplayEGL*>(GetBeader(IBeader::Display));
+        dynamic_cast<GPDisplayEGL*>(GetBeader(IBeader::EGLDisplaySink));
 
     // Ensure a clean shutdown if user types <ctrl+c>
     sig_action.sa_handler = signal_handle;
@@ -495,10 +494,21 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
     sig_action.sa_flags = 0;
     sigaction(SIGINT, &sig_action, NULL);
 
+    SPDLOG_TRACE("pixel format = {0:x}", ctx->cam_pixfmt);
+
+    struct v4l2_fmtdesc fmtdesc;
+    if (ioctl(ctx->cam_fd, ctx->cam_pixfmt, &fmtdesc) == 0) {
+        SPDLOG_DEBUG("pixel format = {0:x} => {}", ctx->cam_pixfmt,
+                     (char*)fmtdesc.description);
+    }
+    else {
+        SPDLOG_WARN("pixel format = {0:x}, desc = {}", ctx->cam_pixfmt,
+                    (char*)fmtdesc.description);
+    }
+
     if (ctx->cam_pixfmt == V4L2_PIX_FMT_MJPEG) {
         // TODO: v0.2, create from registry
         // registry->New("jpegdec");
-        // ctx->jpegdec = NvJPEGDecoder::createJPEGDecoder("jpegdec");
     }
 
     // Init the NvBufferTransformParams
@@ -533,13 +543,6 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
             if (ctx->frame == ctx->save_n_frame)
                 save_frame_to_file(ctx, &v4l2_buf);
 
-            SPDLOG_DEBUG("pixel format = {}", ctx->cam_pixfmt);
-            struct v4l2_fmtdesc fmtdesc;
-            if (ioctl(ctx->cam_fd, ctx->cam_pixfmt, &fmtdesc) == 0) {
-                SPDLOG_DEBUG("pixel format = {} => {}", ctx->cam_pixfmt,
-                             (char*)fmtdesc.description);
-            }
-
             GPFileSink* buffer_handler =
                 dynamic_cast<GPFileSink*>(GetBeader(IBeader::FileSink));
             if (buffer_handler) {
@@ -571,10 +574,14 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
                     bytesused--;
                 }
 
-                if (jpeg_decoder && jpeg_decoder->decodeToFd(
-                                        fd, ctx->g_buff[v4l2_buf.index].start,
-                                        bytesused, pixfmt, width, height) < 0)
-                    ERROR_RETURN("Cannot decode MJPEG");
+                if (!jpeg_decoder ||
+                    jpeg_decoder->decodeToFd(
+                        fd, ctx->g_buff[v4l2_buf.index].start, bytesused,
+                        pixfmt, width, height) < 0) {
+                    SPDLOG_ERROR("Cannot decode MJPEG: jpeg_decoder={}",
+                                 static_cast<void*>(jpeg_decoder));
+                    return false;
+                }
 
                 // Convert the camera buffer to YUV420P
                 if (-1 ==
@@ -593,7 +600,7 @@ bool CameraV4l2::start_capture(v4l2_context_t* ctx)
             }
             else if (ctx->cam_pixfmt == V4L2_PIX_FMT_H265) {
             }
-            else {
+            else {  // raw data
                 if (ctx->capture_dmabuf) {
                     // Cache sync for VIC operation
                     NvBufferMemSyncForDevice(
@@ -708,7 +715,7 @@ cleanup:
     // if (ctx.egl_display && !eglTerminate(ctx.egl_display))
     //     printf("Failed to terminate EGL display connection\n");
 
-    RemoveBeader(Display);
+    RemoveBeader(EGLDisplaySink);
 
     if (ctx.g_buff != NULL) {
         for (unsigned i = 0; i < V4L2_BUFFERS_NUM; i++) {
@@ -746,7 +753,7 @@ int CameraV4l2::LoadConfiguration()
 
     ctx->cam_devname = j["device"].get<std::string>();
 
-    ctx->cam_pixfmt = V4L2_PIX_FMT_YUYV;
+    ctx->cam_pixfmt = V4L2_PIX_FMT_YVYU;
     ctx->cam_w = 640;
     ctx->cam_h = 480;
     ctx->frame = 0;

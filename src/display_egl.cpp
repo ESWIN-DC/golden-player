@@ -7,7 +7,7 @@
 #include <fstream>
 #include <iostream>
 
-#include <spdlog/spdlog.h>
+#include "gp_log.h"
 
 #include "Error.h"
 #include "NvCudaProc.h"
@@ -24,7 +24,10 @@
 
 namespace GPlayer {
 
-GPDisplayEGL::GPDisplayEGL() : egl_display_(EGL_NO_DISPLAY) {}
+GPDisplayEGL::GPDisplayEGL() : egl_display_(EGL_NO_DISPLAY)
+{
+    SetType(IBeader::EGLDisplaySink);
+}
 
 GPDisplayEGL::~GPDisplayEGL()
 {

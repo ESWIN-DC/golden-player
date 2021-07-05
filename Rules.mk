@@ -1,7 +1,7 @@
 TOP_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
 # Clear the flags from env
-CPPFLAGS :=
+CPPFLAGS := -DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE
 LDFLAGS :=
 
 # Verbose flag

@@ -12,7 +12,7 @@
 #include <iostream>
 #include <memory>
 
-#include <spdlog/spdlog.h>
+#include "gp_log.h"
 
 #include "NvApplicationProfiler.h"
 #include "NvUtils.h"

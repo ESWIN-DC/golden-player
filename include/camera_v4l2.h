@@ -76,6 +76,8 @@ private:
 public:
     CameraV4l2()
     {
+        SetType(CameraV4l2Src);
+
         nvcolor_fmt_ = {
             // TODO add more pixel format mapping
             {V4L2_PIX_FMT_UYVY, NvBufferColorFormat_UYVY},
