@@ -274,7 +274,7 @@ bool GPCameraV4l2::init_components(v4l2_context_t* ctx)
 
     if (!display || !display->Initialize(ctx->fps, ctx->enable_cuda, ctx->cam_w,
                                          ctx->cam_h)) {
-        ERROR_RETURN("Failed to initialize display");
+        SPDLOG_WARN("Failed to initialize display");
     }
 
     INFO("Initialize v4l2 components successfully");
@@ -527,6 +527,8 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
     while (poll(fds, 1, 5000) > 0 && !quit) {
         if (fds[0].revents & POLLIN) {
             struct v4l2_buffer v4l2_buf;
+            uint8_t* pbuf;
+            size_t bufsize;
 
             // Dequeue camera buff
             memset(&v4l2_buf, 0, sizeof(v4l2_buf));
@@ -539,6 +541,9 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
                 ERROR_RETURN("Failed to dequeue camera buff: %s (%d)",
                              strerror(errno), errno);
 
+            pbuf = ctx->g_buff[v4l2_buf.index].start;
+            bufsize = v4l2_buf.bytesused;
+
             ctx->frame++;
 
             if (ctx->frame == ctx->save_n_frame)
@@ -547,10 +552,8 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
             GPFileSink* buffer_handler =
                 dynamic_cast<GPFileSink*>(GetBeader(BeaderType::FileSink));
             if (buffer_handler) {
-                GPBuffer gpbuffer(ctx->g_buff[v4l2_buf.index].start,
-                                  ctx->g_buff[v4l2_buf.index].size);
+                GPBuffer gpbuffer(pbuf, bufsize);
                 GPData data(&gpbuffer);
-
                 buffer_handler->Process(&data);
             }
 
@@ -559,7 +562,7 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
                 uint32_t width, height, pixfmt;
                 unsigned int i = 0;
                 unsigned int eos_search_size = MJPEG_EOS_SEARCH_SIZE;
-                unsigned int bytesused = v4l2_buf.bytesused;
+                unsigned int bytesused = bufsize;
                 uint8_t* p;
 
                 // v4l2_buf.bytesused may have padding bytes for alignment
@@ -567,8 +570,7 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
                 if (eos_search_size > bytesused)
                     eos_search_size = bytesused;
                 for (i = 0; i < eos_search_size; i++) {
-                    p = (uint8_t*)(ctx->g_buff[v4l2_buf.index].start +
-                                   bytesused);
+                    p = (uint8_t*)(pbuf + bytesused);
                     if ((*(p - 2) == 0xff) && (*(p - 1) == 0xd9)) {
                         break;
                     }
@@ -576,11 +578,10 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
                 }
 
                 if (!jpeg_decoder ||
-                    jpeg_decoder->decodeToFd(
-                        fd, ctx->g_buff[v4l2_buf.index].start, bytesused,
-                        pixfmt, width, height) < 0) {
+                    jpeg_decoder->decodeToFd(fd, pbuf, bytesused, pixfmt, width,
+                                             height) < 0) {
                     SPDLOG_ERROR("Cannot decode MJPEG: jpeg_decoder={}",
-                                 static_cast<void*>(jpeg_decoder));
+                                 reinterpret_cast<intptr_t>(jpeg_decoder));
                     return false;
                 }
 
@@ -597,8 +598,7 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
                      ctx->cam_pixfmt == V4L2_PIX_FMT_MPEG4) {
                 IBeader* decoder = GetBeader(BeaderType::NvVideoDecoder);
                 if (decoder) {
-                    GPBuffer gpbuffer(ctx->g_buff[v4l2_buf.index].start,
-                                      ctx->g_buff[v4l2_buf.index].size);
+                    GPBuffer gpbuffer(pbuf, bufsize);
                     GPData data(&gpbuffer);
                     GPNvVideoDecoder* video_decoder =
                         dynamic_cast<GPNvVideoDecoder*>(decoder);
@@ -632,7 +632,7 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
 
             // Display the camera buffer
             if (display) {
-                display->Display(ctx->enable_cuda, ctx->render_dmabuf_fd);
+                // display->Display(ctx->enable_cuda, ctx->render_dmabuf_fd);
             }
 
             // Enqueue camera buff
@@ -735,10 +735,14 @@ int GPCameraV4l2::SaveConfiguration(const std::string& configuration)
 {
     using nlohmann::json;
 
-    std::ofstream o("GPCameraV4l2.json");
+    std::ofstream o(configuration);
     json j;
 
-    o << j;
+    j["device"] = "/dev/video0";
+    j["width"] = 640;
+    j["height"] = 480;
+
+    o << j.dump(4);
 }
 
 int GPCameraV4l2::LoadConfiguration()
@@ -746,11 +750,28 @@ int GPCameraV4l2::LoadConfiguration()
     using nlohmann::json;
 
     v4l2_context_t* ctx = &ctx_;
-    std::ifstream i("GPCameraV4l2.json");
+    bool parse_ok = true;
+    std::ifstream i("camera.json");
     json j;
-    i >> j;
 
-    ctx->cam_devname = j["device"].get<std::string>();
+    try {
+        i >> j;
+    }
+    catch (json::parse_error& e) {
+        SPDLOG_ERROR("Paser error: {}", e.what());
+        parse_ok = false;
+    }
+
+    if (parse_ok) {
+        auto device = j["device"];
+        ctx->cam_devname = device.get<std::string>();
+    }
+
+    // SaveConfiguration("cameraV4l2.json");
+
+    if (!ctx->cam_devname.empty()) {
+        SPDLOG_INFO("cam_devname: {}", ctx->cam_devname);
+    }
 
     ctx->cam_pixfmt = V4L2_PIX_FMT_YVYU;
     ctx->cam_w = 640;
@@ -760,13 +781,9 @@ int GPCameraV4l2::LoadConfiguration()
 
     ctx->g_buff = NULL;
     ctx->capture_dmabuf = true;
-    // ctx->renderer = NULL;
     ctx->fps = 30;
 
     ctx->enable_cuda = false;
-    // ctx->egl_image = NULL;
-    // ctx->egl_display = EGL_NO_DISPLAY;
-
     ctx->enable_verbose = false;
 }
 

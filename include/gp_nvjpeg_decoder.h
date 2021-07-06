@@ -8,7 +8,7 @@
 namespace GPlayer {
 class GPNvJpegDecoder : public IBeader {
 public:
-    GPNvJpegDecoder()
+    explicit GPNvJpegDecoder()
     {
         SetType(BeaderType::NvJpegDecoder);
         jpegdec_ = NvJPEGDecoder::createJPEGDecoder("jpegdec");

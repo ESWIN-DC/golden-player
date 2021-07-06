@@ -39,7 +39,7 @@ std::string GPDisplayEGL::GetInfo() const
     return "GPDisplayEGL";
 }
 
-void GPDisplayEGL::Display(bool enable_cuda, int dmabuf_fd)
+int GPDisplayEGL::Display(bool enable_cuda, int dmabuf_fd)
 {
     if (enable_cuda) {
         // Create EGLImage from dmabuf fd
@@ -47,7 +47,7 @@ void GPDisplayEGL::Display(bool enable_cuda, int dmabuf_fd)
         if (egl_image == NULL) {
             SPDLOG_ERROR("Failed to map dmabuf fd (0x%X) to EGLImage",
                          dmabuf_fd);
-            return;
+            return -1;
         }
 
         // Running algo process with EGLImage via GPU multi cores
@@ -57,7 +57,7 @@ void GPDisplayEGL::Display(bool enable_cuda, int dmabuf_fd)
         NvDestroyEGLImage(egl_display_, egl_image);
     }
 
-    renderer_->render(dmabuf_fd);
+    return renderer_->render(dmabuf_fd);
 }
 
 void GPDisplayEGL::enableProfiling()
@@ -73,13 +73,15 @@ void GPDisplayEGL::printProfilingStats()
 bool GPDisplayEGL::Initialize(int fps,
                               bool enable_cuda,
                               uint32_t width,
-                              uint32_t height)
+                              uint32_t height,
+                              uint32_t x,
+                              uint32_t y)
 {
     // Create EGL renderer
     renderer_ =
-        NvEglRenderer::createEglRenderer("renderer0", width, height, 0, 0);
+        NvEglRenderer::createEglRenderer("renderer0", width, height, x, y);
     if (!renderer_)
-        ERROR_RETURN("Failed to create EGL renderer");
+        ERROR_RETURN("Failed to create EGL renderer. Check if X is running");
     renderer_->setFPS(fps);
 
     if (enable_cuda) {

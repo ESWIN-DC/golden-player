@@ -4,7 +4,7 @@ include ../Rules.mk
 APP := libgolden-player.a
 
 CPPFLAGS += \
-	-Wall -O1 -g\
+	-Wall -O0 -g\
 	-I"$(TOP_DIR)/include"
 
 SRCS := \

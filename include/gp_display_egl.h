@@ -13,9 +13,14 @@ public:
     ~GPDisplayEGL();
 
     std::string GetInfo() const;
-    bool Initialize(int fps, bool enable_cuda, uint32_t width, uint32_t height);
+    bool Initialize(int fps,
+                    bool enable_cuda,
+                    uint32_t width,
+                    uint32_t height,
+                    uint32_t x = 0,
+                    uint32_t y = 0);
     void Terminate();
-    void Display(bool enable_cuda, int dmabuf_fd);
+    int Display(bool enable_cuda, int dmabuf_fd);
     void enableProfiling();
     void printProfilingStats();
 

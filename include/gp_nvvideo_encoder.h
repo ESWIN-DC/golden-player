@@ -48,7 +48,7 @@ private:
     GPNvVideoEncoder();
 
 public:
-    GPNvVideoEncoder(const shared_ptr<VideoEncodeContext_T> context);
+    explicit GPNvVideoEncoder(const shared_ptr<VideoEncodeContext_T> context);
     ~GPNvVideoEncoder();
 
     std::string GetInfo() const;

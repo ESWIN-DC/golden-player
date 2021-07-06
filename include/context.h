@@ -25,7 +25,7 @@ typedef struct : public context_t {
     NvVideoConverter* conv;
     uint32_t decoder_pixfmt;
 
-    NvEglRenderer* renderer;
+    // NvEglRenderer* renderer;
 
     // char** in_file_path;
     // std::ifstream** in_file;
@@ -33,7 +33,7 @@ typedef struct : public context_t {
     // char* out_file_path;
     // std::ofstream* out_file;
 
-    bool disable_rendering;
+    // bool disable_rendering;
     bool fullscreen;
     uint32_t window_height;
     uint32_t window_width;

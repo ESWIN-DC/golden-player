@@ -65,7 +65,7 @@ GPNvVideoDecoder::GPNvVideoDecoder(
     : buffer_(CHUNK_SIZE * 16)
 {
     ctx_ = context;
-    SetType(BeaderType::NvVideoEncoder);
+    SetType(BeaderType::NvVideoDecoder);
 
     decode_thread_ = std::thread(decodeProc, this);
 }
@@ -473,6 +473,9 @@ void GPNvVideoDecoder::query_and_set_capture()
     NvBufferCreateParams input_params = {0};
     NvBufferCreateParams cParams = {0};
 
+    GPDisplayEGL* display =
+        dynamic_cast<GPDisplayEGL*>(GetBeader(BeaderType::EGLDisplaySink));
+
     // Get capture plane format from the decoder. This may change after
     // an resolution change event
     ret = dec->capture_plane.getFormat(format);
@@ -526,9 +529,10 @@ void GPNvVideoDecoder::query_and_set_capture()
     }
 #endif
 
-    if (!ctx_->disable_rendering) {
+    // if (!ctx_->disable_rendering) {
+    if (display) {
         // Destroy the old instance of renderer as resolution might have changed
-        delete ctx_->renderer;
+        // delete ctx_->renderer;
 
         if (ctx_->fullscreen) {
             // Required for fullscreen
@@ -545,20 +549,29 @@ void GPNvVideoDecoder::query_and_set_capture()
             window_height = crop.c.height;
         }
 
-        // If height or width are set to zero, EglRenderer creates a fullscreen
-        // window
-        ctx_->renderer = NvEglRenderer::createEglRenderer(
-            "renderer0", window_width, window_height, ctx_->window_x,
-            ctx_->window_y);
-        TEST_ERROR(!ctx_->renderer,
+        bool renderer_error =
+            display->Initialize(ctx_->fps, false, window_width, window_height,
+                                ctx_->window_x, ctx_->window_y);
+        TEST_ERROR(!renderer_error,
                    "Error in setting up renderer. "
                    "Check if X is running or run with --disable-rendering",
                    error);
+
+        // If height or width are set to zero, EglRenderer creates a fullscreen
+        // window
+        // ctx_->renderer = NvEglRenderer::createEglRenderer(
+        //     "renderer0", window_width, window_height, ctx_->window_x,
+        //     ctx_->window_y);
+        // TEST_ERROR(!ctx_->renderer,
+        //            "Error in setting up renderer. "
+        //            "Check if X is running or run with --disable-rendering",
+        //            error);
         if (ctx_->stats) {
-            ctx_->renderer->enableProfiling();
+            // ctx_->renderer->enableProfiling();
+            display->enableProfiling();
         }
 
-        ctx_->renderer->setFPS(ctx_->fps);
+        // ctx_->renderer->setFPS(ctx_->fps);
     }
 
     // deinitPlane unmaps the buffers and calls REQBUFS with count 0
@@ -806,6 +819,9 @@ void* GPNvVideoDecoder::dec_capture_loop_fcn(void* arg)
     struct v4l2_event ev;
     int ret;
 
+    GPDisplayEGL* display = dynamic_cast<GPDisplayEGL*>(
+        videoDecoder->GetBeader(BeaderType::EGLDisplaySink));
+
     cout << "Starting decoder capture loop thread" << endl;
     // Need to wait for the first Resolution change event, so that
     // the decoder knows the stream resolution and can allocate appropriate
@@ -882,19 +898,20 @@ void* GPNvVideoDecoder::dec_capture_loop_fcn(void* arg)
                      << v4l2_buf.timestamp.tv_usec << "us]" << endl;
             }
 
-            if (!ctx->disable_rendering && ctx->stats) {
+            if (display && ctx->stats) {
                 // EglRenderer requires the fd of the 0th plane to render the
                 // buffer
                 if (ctx->capture_plane_mem_type == V4L2_MEMORY_DMABUF)
                     dec_buffer->planes[0].fd = ctx->dmabuff_fd[v4l2_buf.index];
-                ctx->renderer->render(dec_buffer->planes[0].fd);
+                // ctx->renderer->render(dec_buffer->planes[0].fd);
+                display->Display(false, dec_buffer->planes[0].fd);
             }
 
             // If we need to write to file or display the buffer,
             // give the buffer to video converter output plane
             // instead of returning the buffer back to decoder capture plane
             // if (ctx->out_file || (!ctx->disable_rendering && !ctx->stats)) {
-            if (!ctx->disable_rendering && !ctx->stats) {
+            if (display && !ctx->stats) {
 #ifndef USE_NVBUF_TRANSFORM_API
                 NvBuffer* conv_buffer;
                 struct v4l2_buffer conv_output_buffer;
@@ -969,8 +986,9 @@ void* GPNvVideoDecoder::dec_capture_loop_fcn(void* arg)
                 //     }
                 // }
 
-                if (!ctx->stats && !ctx->disable_rendering) {
-                    ctx->renderer->render(ctx->dst_dma_fd);
+                if (!ctx->stats && display) {
+                    // ctx->renderer->render(ctx->dst_dma_fd);
+                    display->Display(false, ctx->dst_dma_fd);
                 }
 
                 // Not writing to file
@@ -1066,6 +1084,9 @@ bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos,
     int ret = 0;
     struct v4l2_buffer temp_buf;
     struct v4l2_event ev;
+
+    GPDisplayEGL* display =
+        dynamic_cast<GPDisplayEGL*>(GetBeader(BeaderType::EGLDisplaySink));
 
     while (!ctx_->got_error && !ctx_->dec->isInError()) {
         struct v4l2_buffer v4l2_output_buf;
@@ -1261,7 +1282,7 @@ bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos,
                      << v4l2_capture_buf.timestamp.tv_usec << "us]" << endl;
             }
 
-            if (!ctx_->disable_rendering && ctx_->stats) {
+            if (display && ctx_->stats) {
                 // Rendering the buffer here
                 // EglRenderer requires the fd of the 0th plane to render the
                 // buffer
@@ -1270,7 +1291,7 @@ bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos,
                         ctx_->dmabuff_fd[v4l2_capture_buf.index];
                 // cout << "Enqueue the buffer to renderer " <<
                 // capture_buffer->planes[0].fd << endl;
-                if (ctx_->renderer->render(capture_buffer->planes[0].fd) ==
+                if (display->Display(false, capture_buffer->planes[0].fd) ==
                     -1) {
                     Abort();
                     cerr << "Error while queueing buffer for rendering "
@@ -1279,7 +1300,7 @@ bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos,
                 }
             }
 
-            if (!ctx_->disable_rendering && !ctx_->stats) {
+            if (display && !ctx_->stats) {
                 NvBufferRect src_rect, dest_rect;
                 src_rect.top = 0;
                 src_rect.left = 0;
@@ -1334,8 +1355,8 @@ bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos,
                 //     buffer_handler->Process(&data);
                 // }
 
-                if (!ctx_->stats && !ctx_->disable_rendering) {
-                    ctx_->renderer->render(ctx_->dst_dma_fd);
+                if (!ctx_->stats && display) {
+                    display->Display(false, ctx_->dst_dma_fd);
                 }
                 // Queue the buffer back once it has been used.
                 // If we are not rendering, queue the buffer back here
@@ -1474,6 +1495,9 @@ int GPNvVideoDecoder::decode_proc()
     NvApplicationProfiler& profiler =
         NvApplicationProfiler::getProfilerInstance();
 
+    GPDisplayEGL* display =
+        dynamic_cast<GPDisplayEGL*>(GetBeader(BeaderType::EGLDisplaySink));
+
     set_defaults();
 
     pthread_setname_np(pthread_self(), "DecOutPlane");
@@ -1593,14 +1617,14 @@ int GPNvVideoDecoder::decode_proc()
 
     if (ctx_->blocking_mode) {
         pthread_create(&ctx_->dec_capture_loop, NULL, dec_capture_loop_fcn,
-                       NULL);
+                       this);
         pthread_setname_np(ctx_->dec_capture_loop, "DecCapPlane");
     }
     else {
         sem_init(&ctx_->pollthread_sema, 0, 0);
         sem_init(&ctx_->decoderthread_sema, 0, 0);
         pthread_create(&ctx_->dec_pollthread, NULL, decoder_pollthread_fcn,
-                       NULL);
+                       this);
         cout << "Created the PollThread and Decoder Thread \n";
         pthread_setname_np(ctx_->dec_pollthread, "DecPollThread");
     }
@@ -1750,8 +1774,8 @@ int GPNvVideoDecoder::decode_proc()
             ctx_->conv->printProfilingStats(cout);
         }
 #endif
-        if (ctx_->renderer) {
-            ctx_->renderer->printProfilingStats(cout);
+        if (display) {
+            display->printProfilingStats();
         }
         profiler.printProfilerData(cout);
     }
@@ -1800,7 +1824,7 @@ cleanup:
     delete ctx_->conv;
 #endif
     // Similarly, EglRenderer destructor does all the cleanup
-    delete ctx_->renderer;
+    // delete ctx_->renderer;
     // for (uint32_t i = 0; i < ctx_->file_count; i++)
     //     delete ctx_->in_file[i];
     // delete ctx_->out_file;

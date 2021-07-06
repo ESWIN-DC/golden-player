@@ -165,7 +165,7 @@ int parse_csv_args(VideoDecodeContext_T* ctx, int argc, char* argv[])
             ctx->stats = true;
         }
         else if (!strcmp(arg, "--disable-rendering")) {
-            ctx->disable_rendering = true;
+            // ctx->disable_rendering = true;
         }
         else if (!strcmp(arg, "--disable-dpb")) {
             ctx->disable_dpb = true;

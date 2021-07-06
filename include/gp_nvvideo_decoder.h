@@ -69,7 +69,7 @@ private:
     GPNvVideoDecoder();
 
 public:
-    GPNvVideoDecoder(const shared_ptr<VideoDecodeContext_T> context);
+    explicit GPNvVideoDecoder(const shared_ptr<VideoDecodeContext_T> context);
     ~GPNvVideoDecoder();
 
     std::string GetInfo() const;
