@@ -27,11 +27,11 @@ typedef struct : public context_t {
 
     NvEglRenderer* renderer;
 
-    char** in_file_path;
-    std::ifstream** in_file;
+    // char** in_file_path;
+    // std::ifstream** in_file;
 
-    char* out_file_path;
-    std::ofstream* out_file;
+    // char* out_file_path;
+    // std::ofstream* out_file;
 
     bool disable_rendering;
     bool fullscreen;

@@ -8,9 +8,11 @@
 #include <pthread.h>
 #include <string.h>
 #include <unistd.h>
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <streambuf>
 
 #include "gp_log.h"
 
@@ -60,9 +62,17 @@ using namespace std;
 
 GPNvVideoDecoder::GPNvVideoDecoder(
     const shared_ptr<VideoDecodeContext_T> context)
+    : buffer_(CHUNK_SIZE * 16)
 {
     ctx_ = context;
     SetType(BeaderType::NvVideoEncoder);
+
+    decode_thread_ = std::thread(decodeProc, this);
+}
+
+GPNvVideoDecoder::~GPNvVideoDecoder()
+{
+    decode_thread_.join();
 }
 
 std::string GPNvVideoDecoder::GetInfo() const
@@ -70,38 +80,50 @@ std::string GPNvVideoDecoder::GetInfo() const
     return "NvVideoDecoder";
 }
 
-void GPNvVideoDecoder::Process(GPData* data) {}
-
-int GPNvVideoDecoder::read_decoder_input_nalu(ifstream* stream,
-                                              NvBuffer* buffer,
-                                              char* parse_buffer,
-                                              streamsize parse_buffer_size)
+void GPNvVideoDecoder::Process(GPData* data)
 {
+    std::lock_guard<std::mutex> guard(buffer_mutex_);
+    GPBuffer* buffer = *data;
+
+    size_t put_size = buffer_.put(buffer->GetData(), buffer->GetLength());
+    if (put_size < buffer->GetLength()) {
+        SPDLOG_WARN("Buffer full!");
+    }
+
+    thread_condition_.notify_one();
+}
+
+int GPNvVideoDecoder::read_decoder_input_nalu(NvBuffer* buffer)
+{
+    std::lock_guard<std::mutex> guard(buffer_mutex_);
     // Length is the size of the buffer in bytes
     char* buffer_ptr = (char*)buffer->planes[0].data;
     int h265_nal_unit_type;
-    char* stream_ptr;
+    // char* stream_ptr;
+    uint8_t stream_buffer[4];
     bool nalu_found = false;
 
-    streamsize bytes_read;
-    streamsize stream_initial_pos = stream->tellg();
+    if (buffer_.size() == 0) {
+        SPDLOG_WARN("No buffers in the {}", GetName());
+        return 0;
+    }
 
-    stream->read(parse_buffer, parse_buffer_size);
-    bytes_read = stream->gcount();
-
-    if (bytes_read == 0) {
+    if (buffer_.size() == 0) {
         return buffer->planes[0].bytesused = 0;
     }
 
     // Find the first NAL unit in the buffer
-    stream_ptr = parse_buffer;
-    while ((stream_ptr - parse_buffer) < (bytes_read - 3)) {
-        nalu_found =
-            IS_NAL_UNIT_START(stream_ptr) || IS_NAL_UNIT_START1(stream_ptr);
+
+    // stream_ptr = parse_buffer;
+    // while ((stream_ptr - parse_buffer) < (bytes_read - 3)) {
+    while (buffer_.snap(stream_buffer, 4) == 4) {
+        nalu_found = IS_NAL_UNIT_START(stream_buffer) ||
+                     IS_NAL_UNIT_START1(stream_buffer);
         if (nalu_found) {
             break;
         }
-        stream_ptr++;
+        // stream_ptr++;
+        buffer_.drop();
     }
 
     // Reached end of buffer but could not find NAL unit
@@ -111,21 +133,22 @@ int GPNvVideoDecoder::read_decoder_input_nalu(ifstream* stream,
         return -1;
     }
 
-    memcpy(buffer_ptr, stream_ptr, 4);
+    // memcpy(buffer_ptr, stream_ptr, 4);
+    buffer_.get(reinterpret_cast<uint8_t*>(buffer_ptr), 4);
     buffer_ptr += 4;
     buffer->planes[0].bytesused = 4;
-    stream_ptr += 4;
+    // stream_ptr += 4;
 
-    if (ctx_->copy_timestamp) {
+    if (buffer_.snap(stream_buffer, 1) && ctx_->copy_timestamp) {
         if (ctx_->decoder_pixfmt == V4L2_PIX_FMT_H264) {
-            if ((IS_H264_NAL_CODED_SLICE(stream_ptr)) ||
-                (IS_H264_NAL_CODED_SLICE_IDR(stream_ptr)))
+            if ((IS_H264_NAL_CODED_SLICE(stream_buffer)) ||
+                (IS_H264_NAL_CODED_SLICE_IDR(stream_buffer)))
                 ctx_->flag_copyts = true;
             else
                 ctx_->flag_copyts = false;
         }
         else if (ctx_->decoder_pixfmt == V4L2_PIX_FMT_H265) {
-            h265_nal_unit_type = GET_H265_NAL_UNIT_TYPE(stream_ptr);
+            h265_nal_unit_type = GET_H265_NAL_UNIT_TYPE(stream_buffer);
             if ((h265_nal_unit_type >= HEVC_NUT_TRAIL_N &&
                  h265_nal_unit_type <= HEVC_NUT_RASL_R) ||
                 (h265_nal_unit_type >= HEVC_NUT_BLA_W_LP &&
@@ -137,19 +160,19 @@ int GPNvVideoDecoder::read_decoder_input_nalu(ifstream* stream,
     }
 
     // Copy bytes till the next NAL unit is found
-    while ((stream_ptr - parse_buffer) < (bytes_read - 3)) {
-        if (IS_NAL_UNIT_START(stream_ptr) || IS_NAL_UNIT_START1(stream_ptr)) {
-            streamsize seekto =
-                stream_initial_pos + (stream_ptr - parse_buffer);
-            if (stream->eof()) {
-                stream->clear();
-            }
-            stream->seekg(seekto, stream->beg);
+    // while ((stream_ptr - parse_buffer) < (bytes_read - 3)) {
+    while (buffer_.snap(stream_buffer, 4) == 4) {
+        if (IS_NAL_UNIT_START(stream_buffer) ||
+            IS_NAL_UNIT_START1(stream_buffer)) {
+            // streamsize seekto =
+            //     stream_initial_pos + (stream_ptr - parse_buffer);
+            // stream->seekg(seekto, stream->beg);
             return 0;
         }
-        *buffer_ptr = *stream_ptr;
+        *buffer_ptr = stream_buffer[0];
         buffer_ptr++;
-        stream_ptr++;
+        // stream_ptr++;
+        buffer_.drop();
         buffer->planes[0].bytesused++;
     }
 
@@ -158,31 +181,36 @@ int GPNvVideoDecoder::read_decoder_input_nalu(ifstream* stream,
     return -1;
 }
 
-int GPNvVideoDecoder::read_decoder_input_chunk(ifstream* stream,
-                                               NvBuffer* buffer)
+int GPNvVideoDecoder::read_decoder_input_chunk(NvBuffer* buffer)
 {
+    std::lock_guard<std::mutex> guard(buffer_mutex_);
     // Length is the size of the buffer in bytes
     streamsize bytes_to_read = MIN(CHUNK_SIZE, buffer->planes[0].length);
 
-    stream->read((char*)buffer->planes[0].data, bytes_to_read);
+    if (buffer_.size() == 0) {
+        SPDLOG_WARN("No buffers in the {}", GetInfo());
+        return 0;
+    }
+
+    // stream->read((char*)buffer->planes[0].data, bytes_to_read);
+
     // It is necessary to set bytesused properly, so that decoder knows how
     // many bytes in the buffer are valid
-    buffer->planes[0].bytesused = stream->gcount();
-    if (buffer->planes[0].bytesused == 0) {
-        stream->clear();
-        stream->seekg(0, stream->beg);
-    }
+    buffer->planes[0].bytesused =
+        buffer_.get(buffer->planes[0].data, bytes_to_read);
     return 0;
 }
 
 int GPNvVideoDecoder::read_vpx_decoder_input_chunk(NvBuffer* buffer)
 {
-    ifstream* stream = ctx_->in_file[0];
-    int Framesize;
+    // ifstream* stream = ctx_->in_file[0];
+    size_t bytes_read = 0;
+    size_t Framesize;
     unsigned char* bitstreambuffer = (unsigned char*)buffer->planes[0].data;
     if (ctx_->vp9_file_header_flag == 0) {
-        stream->read((char*)buffer->planes[0].data, IVF_FILE_HDR_SIZE);
-        if (stream->gcount() != IVF_FILE_HDR_SIZE) {
+        // stream->read((char*)buffer->planes[0].data, IVF_FILE_HDR_SIZE);
+        bytes_read = buffer_.get(buffer->planes[0].data, IVF_FILE_HDR_SIZE);
+        if (bytes_read != IVF_FILE_HDR_SIZE) {
             cerr << "Couldn't read IVF FILE HEADER" << endl;
             return -1;
         }
@@ -194,22 +222,18 @@ int GPNvVideoDecoder::read_vpx_decoder_input_chunk(NvBuffer* buffer)
         cout << "It's a valid IVF file" << endl;
         ctx_->vp9_file_header_flag = 1;
     }
-    stream->read((char*)buffer->planes[0].data, IVF_FRAME_HDR_SIZE);
-
-    if (!stream->gcount()) {
-        cout << "End of stream" << endl;
-        return 0;
-    }
-
-    if (stream->gcount() != IVF_FRAME_HDR_SIZE) {
+    // stream->read((char*)buffer->planes[0].data, IVF_FRAME_HDR_SIZE);
+    bytes_read = buffer_.get(buffer->planes[0].data, IVF_FRAME_HDR_SIZE);
+    if (bytes_read != IVF_FRAME_HDR_SIZE) {
         cerr << "Couldn't read IVF FRAME HEADER" << endl;
         return -1;
     }
     Framesize = (bitstreambuffer[3] << 24) + (bitstreambuffer[2] << 16) +
                 (bitstreambuffer[1] << 8) + bitstreambuffer[0];
     buffer->planes[0].bytesused = Framesize;
-    stream->read((char*)buffer->planes[0].data, Framesize);
-    if (stream->gcount() != Framesize) {
+    // stream->read((char*)buffer->planes[0].data, Framesize);
+    bytes_read = buffer_.get(buffer->planes[0].data, Framesize);
+    if (bytes_read != Framesize) {
         cerr << "Couldn't read Framesize" << endl;
         return -1;
     }
@@ -869,7 +893,8 @@ void* GPNvVideoDecoder::dec_capture_loop_fcn(void* arg)
             // If we need to write to file or display the buffer,
             // give the buffer to video converter output plane
             // instead of returning the buffer back to decoder capture plane
-            if (ctx->out_file || (!ctx->disable_rendering && !ctx->stats)) {
+            // if (ctx->out_file || (!ctx->disable_rendering && !ctx->stats)) {
+            if (!ctx->disable_rendering && !ctx->stats) {
 #ifndef USE_NVBUF_TRANSFORM_API
                 NvBuffer* conv_buffer;
                 struct v4l2_buffer conv_output_buffer;
@@ -933,15 +958,16 @@ void* GPNvVideoDecoder::dec_capture_loop_fcn(void* arg)
                     break;
                 }
 
-                // Write raw video frame to file
-                if (!ctx->stats && ctx->out_file) {
-                    // Dumping two planes of NV12 and three for I420
-                    dump_dmabuf(ctx->dst_dma_fd, 0, ctx->out_file);
-                    dump_dmabuf(ctx->dst_dma_fd, 1, ctx->out_file);
-                    if (ctx->out_pixfmt != 1) {
-                        dump_dmabuf(ctx->dst_dma_fd, 2, ctx->out_file);
-                    }
-                }
+                // TODO: Write raw video frame to file
+                //
+                // if (!ctx->stats && ctx->out_file) {
+                //     // Dumping two planes of NV12 and three for I420
+                //     dump_dmabuf(ctx->dst_dma_fd, 0, ctx->out_file);
+                //     dump_dmabuf(ctx->dst_dma_fd, 1, ctx->out_file);
+                //     if (ctx->out_pixfmt != 1) {
+                //         dump_dmabuf(ctx->dst_dma_fd, 2, ctx->out_file);
+                //     }
+                // }
 
                 if (!ctx->stats && !ctx->disable_rendering) {
                     ctx->renderer->render(ctx->dst_dma_fd);
@@ -1024,8 +1050,7 @@ void GPNvVideoDecoder::set_defaults()
 
 bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos,
                                                 uint32_t current_file,
-                                                int current_loop,
-                                                char* nalu_parse_buffer)
+                                                int current_loop)
 {
     // In non-blocking mode, we will have this function do below things:
     // Issue signal to PollThread so it starts Poll and wait until we are
@@ -1134,13 +1159,10 @@ bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos,
                 (ctx_->decoder_pixfmt == V4L2_PIX_FMT_MPEG2) ||
                 (ctx_->decoder_pixfmt == V4L2_PIX_FMT_MPEG4)) {
                 if (ctx_->input_nalu) {
-                    read_decoder_input_nalu(ctx_->in_file[current_file],
-                                            output_buffer, nalu_parse_buffer,
-                                            CHUNK_SIZE);
+                    read_decoder_input_nalu(output_buffer);
                 }
                 else {
-                    read_decoder_input_chunk(ctx_->in_file[current_file],
-                                             output_buffer);
+                    read_decoder_input_chunk(output_buffer);
                 }
             }
             if (ctx_->decoder_pixfmt == V4L2_PIX_FMT_VP9 ||
@@ -1257,7 +1279,7 @@ bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos,
                 }
             }
 
-            if (ctx_->out_file || (!ctx_->disable_rendering && !ctx_->stats)) {
+            if (!ctx_->disable_rendering && !ctx_->stats) {
                 NvBufferRect src_rect, dest_rect;
                 src_rect.top = 0;
                 src_rect.left = 0;
@@ -1289,17 +1311,29 @@ bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos,
                     break;
                 }
                 // Write raw video frame to file
-                if (!ctx_->stats && ctx_->out_file) {
-                    // Dumping two planes of NV12 and three for I420
-                    cout << "Writing to file \n";
-                    dump_dmabuf(ctx_->dst_dma_fd, 0, ctx_->out_file);
-                    dump_dmabuf(ctx_->dst_dma_fd, 1, ctx_->out_file);
-                    if (ctx_->out_pixfmt != 1) {
-                        dump_dmabuf(ctx_->dst_dma_fd, 2, ctx_->out_file);
-                    }
+                // if (!ctx_->stats && ctx_->out_file) {
+                //     // Dumping two planes of NV12 and three for I420
+                //     cout << "Writing to file \n";
+                //     dump_dmabuf(ctx_->dst_dma_fd, 0, ctx_->out_file);
+                //     dump_dmabuf(ctx_->dst_dma_fd, 1, ctx_->out_file);
+                //     if (ctx_->out_pixfmt != 1) {
+                //         dump_dmabuf(ctx_->dst_dma_fd, 2, ctx_->out_file);
+                //     }
 
-                    //
-                }
+                //     //
+                // }
+
+                // TODO: Write video file
+                // GPFileSink* buffer_handler =
+                //     dynamic_cast<GPFileSink*>(GetBeader(BeaderType::FileSink));
+                // if (buffer_handler) {
+                //     GPBuffer gpbuffer(ctx->g_buff[v4l2_buf.index].start,
+                //                       ctx->g_buff[v4l2_buf.index].size);
+                //     GPData data(&gpbuffer);
+
+                //     buffer_handler->Process(&data);
+                // }
+
                 if (!ctx_->stats && !ctx_->disable_rendering) {
                     ctx_->renderer->render(ctx_->dst_dma_fd);
                 }
@@ -1325,8 +1359,7 @@ bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos,
 
 bool GPNvVideoDecoder::decoder_proc_blocking(bool eos,
                                              uint32_t current_file,
-                                             int current_loop,
-                                             char* nalu_parse_buffer)
+                                             int current_loop)
 {
     // Since all the output plane buffers have been queued, we first need to
     // dequeue a buffer from output plane before we can read new data into it
@@ -1378,11 +1411,10 @@ bool GPNvVideoDecoder::decoder_proc_blocking(bool eos,
             (ctx_->decoder_pixfmt == V4L2_PIX_FMT_MPEG2) ||
             (ctx_->decoder_pixfmt == V4L2_PIX_FMT_MPEG4)) {
             if (ctx_->input_nalu) {
-                read_decoder_input_nalu(ctx_->in_file[current_file], buffer,
-                                        nalu_parse_buffer, CHUNK_SIZE);
+                read_decoder_input_nalu(buffer);
             }
             else {
-                read_decoder_input_chunk(ctx_->in_file[current_file], buffer);
+                read_decoder_input_chunk(buffer);
             }
         }
         if (ctx_->decoder_pixfmt == V4L2_PIX_FMT_VP9 ||
@@ -1430,7 +1462,7 @@ bool GPNvVideoDecoder::decoder_proc_blocking(bool eos,
     return eos;
 }
 
-int GPNvVideoDecoder::decode_proc(int argc, char* argv[])
+int GPNvVideoDecoder::decode_proc()
 {
     int ret = 0;
     int error = 0;
@@ -1438,7 +1470,7 @@ int GPNvVideoDecoder::decode_proc(int argc, char* argv[])
     uint32_t i;
     bool eos = false;
     int current_loop = 0;
-    char* nalu_parse_buffer = NULL;
+    // char* nalu_parse_buffer = NULL;
     NvApplicationProfiler& profiler =
         NvApplicationProfiler::getProfilerInstance();
 
@@ -1446,10 +1478,11 @@ int GPNvVideoDecoder::decode_proc(int argc, char* argv[])
 
     pthread_setname_np(pthread_self(), "DecOutPlane");
 
-    if (parse_csv_args(ctx_.get(), argc, argv)) {
-        fprintf(stderr, "Error parsing commandline arguments\n");
-        return -1;
-    }
+    // if (parse_csv_args(ctx_.get(), argc, argv)) {
+    //     fprintf(stderr, "Error parsing commandline arguments\n");
+    //     return -1;
+    // }
+
     if (ctx_->blocking_mode) {
         cout << "Creating decoder in blocking mode \n";
         ctx_->dec = NvVideoDecoder::createVideoDecoder("dec0");
@@ -1460,19 +1493,19 @@ int GPNvVideoDecoder::decode_proc(int argc, char* argv[])
     }
     TEST_ERROR(!ctx_->dec, "Could not create decoder", cleanup);
 
-    ctx_->in_file =
-        (std::ifstream**)malloc(sizeof(std::ifstream*) * ctx_->file_count);
-    for (uint32_t i = 0; i < ctx_->file_count; i++) {
-        ctx_->in_file[i] = new ifstream(ctx_->in_file_path[i]);
-        TEST_ERROR(!ctx_->in_file[i]->is_open(), "Error opening input file",
-                   cleanup);
-    }
+    // ctx_->in_file =
+    //     (std::ifstream**)malloc(sizeof(std::ifstream*) * ctx_->file_count);
+    // for (uint32_t i = 0; i < ctx_->file_count; i++) {
+    //     ctx_->in_file[i] = new ifstream(ctx_->in_file_path[i]);
+    //     TEST_ERROR(!ctx_->in_file[i]->is_open(), "Error opening input file",
+    //                cleanup);
+    // }
 
-    if (ctx_->out_file_path) {
-        ctx_->out_file = new ofstream(ctx_->out_file_path);
-        TEST_ERROR(!ctx_->out_file->is_open(), "Error opening output file",
-                   cleanup);
-    }
+    // if (ctx_->out_file_path) {
+    //     ctx_->out_file = new ofstream(ctx_->out_file_path);
+    //     TEST_ERROR(!ctx_->out_file->is_open(), "Error opening output file",
+    //                cleanup);
+    // }
 
     if (ctx_->stats) {
         profiler.start(NvApplicationProfiler::DefaultSamplingInterval);
@@ -1489,7 +1522,7 @@ int GPNvVideoDecoder::decode_proc(int argc, char* argv[])
     TEST_ERROR(ret < 0, "Could not set output plane format", cleanup);
 
     if (ctx_->input_nalu) {
-        nalu_parse_buffer = new char[CHUNK_SIZE];
+        // nalu_parse_buffer = new char[CHUNK_SIZE];
         spdlog::info("Setting frame input mode to 0 \n");
         ret = ctx_->dec->setFrameInputMode(0);
         TEST_ERROR(ret < 0, "Error in decoder setFrameInputMode", cleanup);
@@ -1588,6 +1621,11 @@ int GPNvVideoDecoder::decode_proc(int argc, char* argv[])
         struct v4l2_plane planes[MAX_PLANES];
         NvBuffer* buffer;
 
+        {
+            std::unique_lock<std::mutex> lk(buffer_mutex_);
+            thread_condition_.wait(lk, [&] { return buffer_.size() > 0; });
+        }
+
         memset(&v4l2_buf, 0, sizeof(v4l2_buf));
         memset(planes, 0, sizeof(planes));
 
@@ -1597,11 +1635,13 @@ int GPNvVideoDecoder::decode_proc(int argc, char* argv[])
             (ctx_->decoder_pixfmt == V4L2_PIX_FMT_MPEG2) ||
             (ctx_->decoder_pixfmt == V4L2_PIX_FMT_MPEG4)) {
             if (ctx_->input_nalu) {
-                read_decoder_input_nalu(ctx_->in_file[current_file], buffer,
-                                        nalu_parse_buffer, CHUNK_SIZE);
+                // read_decoder_input_nalu(ctx_->in_file[current_file], buffer,
+                //                         nalu_parse_buffer, CHUNK_SIZE);
+
+                read_decoder_input_nalu(buffer);
             }
             else {
-                read_decoder_input_chunk(ctx_->in_file[current_file], buffer);
+                read_decoder_input_chunk(buffer);
             }
         }
         else if (ctx_->decoder_pixfmt == V4L2_PIX_FMT_VP9 ||
@@ -1653,11 +1693,9 @@ int GPNvVideoDecoder::decode_proc(int argc, char* argv[])
         i++;
     }
     if (ctx_->blocking_mode)
-        eos = decoder_proc_blocking(eos, current_file, current_loop,
-                                    nalu_parse_buffer);
+        eos = decoder_proc_blocking(eos, current_file, current_loop);
     else
-        eos = decoder_proc_nonblocking(eos, current_file, current_loop,
-                                       nalu_parse_buffer);
+        eos = decoder_proc_nonblocking(eos, current_file, current_loop);
     // After sending EOS, all the buffers from output plane should be dequeued.
     // and after that capture plane loop should be signalled to stop.
     if (ctx_->blocking_mode) {
@@ -1763,9 +1801,9 @@ cleanup:
 #endif
     // Similarly, EglRenderer destructor does all the cleanup
     delete ctx_->renderer;
-    for (uint32_t i = 0; i < ctx_->file_count; i++)
-        delete ctx_->in_file[i];
-    delete ctx_->out_file;
+    // for (uint32_t i = 0; i < ctx_->file_count; i++)
+    //     delete ctx_->in_file[i];
+    // delete ctx_->out_file;
 #ifndef USE_NVBUF_TRANSFORM_API
     delete ctx_->conv_output_plane_buf_queue;
 #else
@@ -1774,19 +1812,24 @@ cleanup:
         ctx_->dst_dma_fd = -1;
     }
 #endif
-    delete[] nalu_parse_buffer;
+    // delete[] nalu_parse_buffer;
 
-    free(ctx_->in_file);
-    for (uint32_t i = 0; i < ctx_->file_count; i++)
-        free(ctx_->in_file_path[i]);
-    free(ctx_->in_file_path);
-    free(ctx_->out_file_path);
+    // free(ctx_->in_file);
+    // for (uint32_t i = 0; i < ctx_->file_count; i++)
+    //     free(ctx_->in_file_path[i]);
+    // free(ctx_->in_file_path);
+    // free(ctx_->out_file_path);
     if (!ctx_->blocking_mode) {
         sem_destroy(&ctx_->pollthread_sema);
         sem_destroy(&ctx_->decoderthread_sema);
     }
 
     return -error;
+}
+
+int GPNvVideoDecoder::decodeProc(GPNvVideoDecoder* decoder)
+{
+    return decoder->decode_proc();
 }
 
 }  // namespace GPlayer

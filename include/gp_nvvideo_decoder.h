@@ -9,6 +9,8 @@
 #include <pthread.h>
 #include <string.h>
 #include <unistd.h>
+#include <condition_variable>
+#include <deque>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -20,6 +22,7 @@
 
 #include "beader.h"
 #include "context.h"
+#include "gp_circular_buffer.h"
 #include "gplayer.h"
 
 #define TEST_ERROR(cond, str, label) \
@@ -67,17 +70,16 @@ private:
 
 public:
     GPNvVideoDecoder(const shared_ptr<VideoDecodeContext_T> context);
+    ~GPNvVideoDecoder();
 
     std::string GetInfo() const;
 
     void Process(GPData* data);
 
-    int read_decoder_input_nalu(ifstream* stream,
-                                NvBuffer* buffer,
-                                char* parse_buffer,
-                                streamsize parse_buffer_size);
+private:
+    int read_decoder_input_nalu(NvBuffer* buffer);
 
-    int read_decoder_input_chunk(ifstream* stream, NvBuffer* buffer);
+    int read_decoder_input_chunk(NvBuffer* buffer);
 
     int read_vpx_decoder_input_chunk(NvBuffer* buffer);
 
@@ -114,16 +116,20 @@ public:
 
     bool decoder_proc_nonblocking(bool eos,
                                   uint32_t current_file,
-                                  int current_loop,
-                                  char* nalu_parse_buffer);
+                                  int current_loop);
     bool decoder_proc_blocking(bool eos,
                                uint32_t current_file,
-                               int current_loop,
-                               char* nalu_parse_buffer);
-    int decode_proc(int argc, char* argv[]);
+                               int current_loop);
+    int decode_proc();
+
+    static int decodeProc(GPNvVideoDecoder* decoder);
 
 private:
-    shared_ptr<VideoDecodeContext_T> ctx_;
+    std::shared_ptr<VideoDecodeContext_T> ctx_;
+    gp_circular_buffer<uint8_t> buffer_;
+    std::mutex buffer_mutex_;
+    std::condition_variable thread_condition_;
+    std::thread decode_thread_;
 };
 
 };  // namespace GPlayer

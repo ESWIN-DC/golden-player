@@ -23,11 +23,12 @@ enum class BeaderType {
 class IBeader {
 public:
 public:
-    IBeader() : type_(BeaderType::Unknown) {}
+    IBeader() : type_(BeaderType::Unknown), name_("Unknown") {}
     virtual std::string GetInfo() const = 0;
 
     void SetType(BeaderType type) { type_ = type; }
     BeaderType GetType() const { return type_; }
+    std::string GetName() const { return name_; }
     virtual void AddBeader(IBeader* module)
     {
         std::lock_guard<std::mutex> guard(handlers_mutex_);
@@ -73,6 +74,7 @@ public:
 
 private:
     BeaderType type_;
+    char name_[32];
     std::vector<IBeader*> handlers_;
     std::mutex handlers_mutex_;
 };

@@ -24,7 +24,7 @@ std::string GPFileSink::GetInfo() const
 void GPFileSink::Process(GPData* data)
 {
     GPBuffer* buffer = *data;
-    outfile_->write(static_cast<const char*>(buffer->GetData()),
+    outfile_->write(reinterpret_cast<const char*>(buffer->GetData()),
                     buffer->GetLength());
 }
 

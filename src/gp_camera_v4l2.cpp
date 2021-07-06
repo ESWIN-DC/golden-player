@@ -597,7 +597,12 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
                      ctx->cam_pixfmt == V4L2_PIX_FMT_MPEG4) {
                 IBeader* decoder = GetBeader(BeaderType::NvVideoDecoder);
                 if (decoder) {
-                    // decoder->Process();
+                    GPBuffer gpbuffer(ctx->g_buff[v4l2_buf.index].start,
+                                      ctx->g_buff[v4l2_buf.index].size);
+                    GPData data(&gpbuffer);
+                    GPNvVideoDecoder* video_decoder =
+                        dynamic_cast<GPNvVideoDecoder*>(decoder);
+                    video_decoder->Process(&data);
                 }
             }
             else {  // raw data

@@ -2,22 +2,46 @@
 #define __GP_DATA__
 
 #include <cstdint>
+#include <cstring>
+#include <memory>
 
 namespace GPlayer {
 
 class GPBuffer {
 public:
-    GPBuffer(void* data, uint32_t length) : data_(data), length_(length) {}
+    GPBuffer(uint8_t* data, uint32_t length, bool clone = false)
+        : data_(data), length_(length), cloned_(clone)
+    {
+        if (cloned_) {
+            data_ = new uint8_t[length];
+            std::memcpy(data_, data, length);
+        }
+    }
 
-    void* GetData() const { return data_; }
+    ~GPBuffer()
+    {
+        if (cloned_) {
+            delete[] data_;
+        }
+    }
+
+    std::shared_ptr<GPBuffer> clone()
+    {
+        std::shared_ptr<GPBuffer> newClone =
+            std::make_shared<GPBuffer>(data_, length_, true);
+        return newClone;
+    }
+
+    uint8_t* GetData() const { return data_; }
     uint32_t GetLength() const { return length_; }
 
 private:
     GPBuffer();
 
 private:
-    void* data_;
+    uint8_t* data_;
     uint32_t length_;
+    bool cloned_;
 };
 
 class GPEGLImage {

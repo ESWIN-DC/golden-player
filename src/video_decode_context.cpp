@@ -150,9 +150,9 @@ int parse_csv_args(VideoDecodeContext_T* ctx, int argc, char* argv[])
         if (!strcmp(arg, "-o")) {
             argp++;
             CHECK_OPTION_VALUE(argp);
-            ctx->out_file_path = strdup(*argp);
-            CSV_PARSE_CHECK_ERROR(!ctx->out_file_path,
-                                  "Output file not specified");
+            // ctx->out_file_path = strdup(*argp);
+            // CSV_PARSE_CHECK_ERROR(!ctx->out_file_path,
+            //                       "Output file not specified");
         }
         else if (!strcmp(arg, "-f")) {
             argp++;
@@ -305,7 +305,8 @@ int parse_csv_args(VideoDecodeContext_T* ctx, int argc, char* argv[])
         }
 #endif
         else {
-            CSV_PARSE_CHECK_ERROR(ctx->in_file_path, "Unknown option " << arg);
+            // CSV_PARSE_CHECK_ERROR(ctx->in_file_path, "Unknown option " <<
+            // arg);
         }
     }
 
@@ -320,18 +321,19 @@ int parse_csv_args(VideoDecodeContext_T* ctx, int argc, char* argv[])
             --argp;
         }
 
-        ctx->in_file_path = (char**)malloc(sizeof(char*) * ctx->file_count);
+        // ctx->in_file_path = (char**)malloc(sizeof(char*) * ctx->file_count);
         i = 0;
-        while ((arg = *(++argp))) {
-            ctx->in_file_path[i++] = strdup(*argp);
-            CSV_PARSE_CHECK_ERROR(!ctx->in_file_path,
-                                  "Input file not specified");
-        }
+        // while ((arg = *(++argp))) {
+        //     ctx->in_file_path[i++] = strdup(*argp);
+        //     CSV_PARSE_CHECK_ERROR(!ctx->in_file_path,
+        //                           "Input file not specified");
+        // }
     }
     else {
-        ctx->in_file_path = (char**)malloc(sizeof(char*) * 1);
-        ctx->in_file_path[0] = strdup(*--argp);
-        CSV_PARSE_CHECK_ERROR(!ctx->in_file_path, "Input file not specified");
+        // ctx->in_file_path = (char**)malloc(sizeof(char*) * 1);
+        // ctx->in_file_path[0] = strdup(*--argp);
+        // CSV_PARSE_CHECK_ERROR(!ctx->in_file_path, "Input file not
+        // specified");
     }
     return 0;
 

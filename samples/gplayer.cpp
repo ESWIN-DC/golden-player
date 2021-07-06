@@ -42,13 +42,12 @@ int main(int argc, char* argv[])
 
     // v4l2->AddBeader(orignfile.get());
     v4l2->AddBeader(nvjpegdecoder.get());
+    v4l2->AddBeader(nvjpegdecoder.get());
 
     v4l2->AddBeader(egl.get());
 
-    v4l2->AddBeader(encoder.get());
+    v4l2->AddBeader(decoder.get());
 
-    // ret = decoder->decode_proc(argc, argv);
-    // ret = encoder->encode_proc(argc, argv);
     // recorder->main(argc, argv);
 
     ret = v4l2->main(argc, argv);
