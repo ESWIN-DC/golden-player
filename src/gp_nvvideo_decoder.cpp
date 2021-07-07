@@ -105,10 +105,6 @@ int GPNvVideoDecoder::read_decoder_input_nalu(NvBuffer* buffer)
 
     if (buffer_.size() == 0) {
         SPDLOG_WARN("No buffers in the {}", GetName());
-        return 0;
-    }
-
-    if (buffer_.size() == 0) {
         return buffer->planes[0].bytesused = 0;
     }
 
