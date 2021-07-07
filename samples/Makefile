@@ -1,6 +1,6 @@
 include ../Rules.mk
 
-APP := gplayer
+APP := gplayer gplayer-h264 gplayer-mjpeg
 
 ARGUS_UTILS_DIR := $(TOP_DIR)/third_party/tegra_multimedia_api-R32.2.3/argus/samples/utils
 
@@ -19,6 +19,8 @@ LDFLAGS += \
 
 SRCS := \
 	gplayer.cpp \
+	gplayer-h264.cpp \
+	gplayer-mjpeg.cpp \
 
 OBJS := $(SRCS:.cpp=.o)
 
@@ -28,9 +30,17 @@ all: $(APP)
 	@echo "Compiling: $<"
 	$(CPP) $(CPPFLAGS) -c $<
 
-$(APP): $(OBJS) ../src/libgolden-player.a
+gplayer: gplayer.o ../src/libgolden-player.a
 	@echo "Linking: $@"
-	$(CPP) -o $@ $(OBJS) $(CPPFLAGS) $(LDFLAGS)
+	$(CPP) -o $@ gplayer.o $(CPPFLAGS) $(LDFLAGS)
+
+gplayer-h264: gplayer-h264.o ../src/libgolden-player.a
+	@echo "Linking: $@"		
+	$(CPP) -o $@ gplayer-h264.o $(CPPFLAGS) $(LDFLAGS)
+
+gplayer-mjpeg:  gplayer-mjpeg.o ../src/libgolden-player.a
+	@echo "Linking: $@"	
+	$(CPP) -o $@ gplayer-mjpeg.o $(CPPFLAGS) $(LDFLAGS)
 
 clean:
 	$(AT)rm -rf $(APP) $(OBJS)
