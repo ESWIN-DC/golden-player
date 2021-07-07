@@ -60,7 +60,7 @@ GPNvVideoDecoder::GPNvVideoDecoder(
     ctx_ = context;
     SetType(BeaderType::NvVideoDecoder);
 
-    decode_thread_ = std::thread(decodeProc, this);
+    // decode_thread_ = std::thread(decodeProc, this);
 }
 
 GPNvVideoDecoder::~GPNvVideoDecoder()
@@ -462,8 +462,8 @@ void GPNvVideoDecoder::query_and_set_capture()
     NvBufferCreateParams input_params = {0};
     NvBufferCreateParams cParams = {0};
 
-    GPDisplayEGL* display =
-        dynamic_cast<GPDisplayEGL*>(GetBeader(BeaderType::EGLDisplaySink));
+    GPDisplayEGL* display = dynamic_cast<GPDisplayEGL*>(
+        GetBeader(BeaderType::EGLDisplaySink).get());
 
     // Get capture plane format from the decoder. This may change after
     // an resolution change event
@@ -809,7 +809,7 @@ void* GPNvVideoDecoder::dec_capture_loop_fcn(void* arg)
     int ret;
 
     GPDisplayEGL* display = dynamic_cast<GPDisplayEGL*>(
-        videoDecoder->GetBeader(BeaderType::EGLDisplaySink));
+        videoDecoder->GetBeader(BeaderType::EGLDisplaySink).get());
 
     SPDLOG_INFO("Starting decoder capture loop thread");
     // Need to wait for the first Resolution change event, so that
@@ -1072,8 +1072,8 @@ bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos,
     struct v4l2_buffer temp_buf;
     struct v4l2_event ev;
 
-    GPDisplayEGL* display =
-        dynamic_cast<GPDisplayEGL*>(GetBeader(BeaderType::EGLDisplaySink));
+    GPDisplayEGL* display = dynamic_cast<GPDisplayEGL*>(
+        GetBeader(BeaderType::EGLDisplaySink).get());
 
     while (!ctx_->got_error && !ctx_->dec->isInError()) {
         struct v4l2_buffer v4l2_output_buf;
@@ -1467,7 +1467,7 @@ bool GPNvVideoDecoder::decoder_proc_blocking(bool eos,
     return eos;
 }
 
-int GPNvVideoDecoder::decode_proc()
+int GPNvVideoDecoder::Proc()
 {
     int ret = 0;
     int error = 0;
@@ -1479,8 +1479,8 @@ int GPNvVideoDecoder::decode_proc()
     NvApplicationProfiler& profiler =
         NvApplicationProfiler::getProfilerInstance();
 
-    GPDisplayEGL* display =
-        dynamic_cast<GPDisplayEGL*>(GetBeader(BeaderType::EGLDisplaySink));
+    GPDisplayEGL* display = dynamic_cast<GPDisplayEGL*>(
+        GetBeader(BeaderType::EGLDisplaySink).get());
 
     set_defaults();
 
@@ -1836,7 +1836,7 @@ cleanup:
 
 int GPNvVideoDecoder::decodeProc(GPNvVideoDecoder* decoder)
 {
-    return decoder->decode_proc();
+    return decoder->Proc();
 }
 
 }  // namespace GPlayer

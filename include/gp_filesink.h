@@ -16,6 +16,7 @@ public:
     GPFileSink(std::string filename);
     ~GPFileSink();
     std::string GetInfo() const;
+    bool HasProc() override { return false; };
     void Process(GPData* data);
 
 private:

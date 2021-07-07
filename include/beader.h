@@ -9,8 +9,9 @@
 
 namespace GPlayer {
 
+enum class BeaderDirection { Unknown = 0, Src, Sink };
 enum class BeaderType {
-    Unknown = -1,
+    Unknown = 0,
     CameraV4l2Src,
     FileSink,
     IMAGE,
@@ -20,37 +21,68 @@ enum class BeaderType {
     NvJpegDecoder,
 };
 
+class GPPipeline;
 class IBeader {
 public:
 public:
-    IBeader() : type_(BeaderType::Unknown), name_("Unknown") {}
+    explicit IBeader() : type_(BeaderType::Unknown), name_("Unknown") {}
     virtual std::string GetInfo() const = 0;
-
-    void SetType(BeaderType type) { type_ = type; }
-    BeaderType GetType() const { return type_; }
-    std::string GetName() const { return name_; }
-    virtual void AddBeader(IBeader* module)
+    virtual void SetType(BeaderType type) final { type_ = type; }
+    virtual BeaderType GetType() const final { return type_; }
+    virtual std::string GetName() const final { return name_; }
+    virtual void Link(std::shared_ptr<IBeader> beader) final
     {
         std::lock_guard<std::mutex> guard(handlers_mutex_);
-        if (module->type_ == BeaderType::Unknown) {
-            SPDLOG_ERROR("BUGBUG: unkown handler: {}", module->GetInfo());
+        if (beader->type_ == BeaderType::Unknown) {
+            SPDLOG_ERROR("BUGBUG: unkown handler: {}", beader->GetInfo());
         }
 
-        handlers_.push_back(module);
+        if (beader->pipeline_ != pipeline_) {
+            SPDLOG_WARN(
+                "BUGBUG: Cannot link beaders [{} {}] from different pipelines.",
+                GetInfo(), beader->GetInfo());
+        }
+
+        handlers_.push_back(beader);
+        SPDLOG_TRACE("{} linked the beader type={} info={} ...", GetInfo(),
+                     beader->GetType(), beader->GetInfo());
     }
 
-    void RemoveBeader(IBeader* module)
+    virtual void Link(std::vector<std::shared_ptr<IBeader>>& beaders) final
+    {
+        std::lock_guard<std::mutex> guard(handlers_mutex_);
+        std::for_each(beaders.begin(), beaders.end(),
+                      [&](std::shared_ptr<IBeader>& beader) {
+                          if (beader->type_ == BeaderType::Unknown) {
+                              SPDLOG_ERROR("BUGBUG: unkown handler: {}",
+                                           beader->GetInfo());
+                          }
+
+                          if (beader->pipeline_ != pipeline_) {
+                              SPDLOG_WARN(
+                                  "BUGBUG: Cannot link beaders [{} {}] from "
+                                  "different pipelines.",
+                                  GetInfo(), beader->GetInfo());
+                          }
+                          SPDLOG_TRACE("{} link the beader type={} info={}...",
+                                       GetInfo(), beader->GetType(),
+                                       beader->GetInfo());
+                      });
+        handlers_.insert(handlers_.end(), beaders.begin(), beaders.end());
+    }
+
+    virtual void Unlink(IBeader* module) final
     {
         std::lock_guard<std::mutex> guard(handlers_mutex_);
         for (auto it = handlers_.begin(); it != handlers_.end(); ++it) {
-            if ((*it) == module) {
+            if ((*it).get() == module) {
                 handlers_.erase(it);
                 break;
             }
         }
     }
 
-    void RemoveBeader(BeaderType type)
+    virtual void Unlink(BeaderType type) final
     {
         std::lock_guard<std::mutex> guard(handlers_mutex_);
         for (auto it = handlers_.begin(); it != handlers_.end(); ++it) {
@@ -61,7 +93,7 @@ public:
         }
     }
 
-    IBeader* GetBeader(BeaderType type)
+    virtual std::shared_ptr<IBeader> GetBeader(BeaderType type) final
     {
         std::lock_guard<std::mutex> guard(handlers_mutex_);
         for (auto it = handlers_.begin(); it != handlers_.end(); ++it) {
@@ -72,11 +104,25 @@ public:
         return nullptr;
     }
 
+    virtual bool Attach(GPPipeline* pipeline) final
+    {
+        pipeline_ = pipeline;
+        return false;
+    }
+
+    virtual bool HasProc() = 0;
+    virtual int Proc()
+    {
+        SPDLOG_CRITICAL("kill the warhog");
+        return 0;
+    }
+
 private:
     BeaderType type_;
     char name_[32];
-    std::vector<IBeader*> handlers_;
+    std::vector<std::shared_ptr<IBeader>> handlers_;
     std::mutex handlers_mutex_;
+    GPPipeline* pipeline_;
 };
 
 }  // namespace GPlayer

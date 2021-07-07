@@ -12,7 +12,8 @@ public:
     GPDisplayEGL();
     ~GPDisplayEGL();
 
-    std::string GetInfo() const;
+    std::string GetInfo() const override;
+    bool HasProc() override { return false; };
     bool Initialize(int fps,
                     bool enable_cuda,
                     uint32_t width,

@@ -89,7 +89,10 @@ public:
         };
     }
 
-    std::string GetInfo() const;
+    std::string GetInfo() const override;
+    bool HasProc() override { return true; };
+    int Proc() override;
+
     void Process(GPData* data);
     void print_usage(void);
     bool parse_cmdline(v4l2_context_t* ctx, int argc, char** argv);
@@ -108,7 +111,6 @@ public:
     bool start_capture(v4l2_context_t* ctx);
     bool stop_stream(v4l2_context_t* ctx);
     // bool ReadFrame(NvBuffer& buffer);
-    int main(int argc, char* argv[]);
 
     bool SaveConfiguration(const std::string& configuration);
     bool LoadConfiguration();

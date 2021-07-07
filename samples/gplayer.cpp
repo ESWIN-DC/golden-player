@@ -38,36 +38,33 @@ int main(int argc, char* argv[])
     shared_ptr<GPDisplayEGL> egl = std::make_shared<GPDisplayEGL>();
     shared_ptr<GPFileSink> h264file =
         std::make_shared<GPFileSink>(std::string("try001.h264"));
-    shared_ptr<GPFileSink> orignfile =
-        std::make_shared<GPFileSink>(std::string("try001.orgin"));
+    shared_ptr<GPFileSink> mjpegfile =
+        std::make_shared<GPFileSink>(std::string("try001.mjpeg"));
 
-    nvvideodecoder->AddBeader(h264file.get());
-    nvvideodecoder->AddBeader(egl.get());
-
-    v4l2->AddBeader(orignfile.get());
-    v4l2->AddBeader(nvjpegdecoder.get());
-    v4l2->AddBeader(nvvideodecoder.get());
-
-    // v4l2->AddBeader(egl.get());
-
-    // recorder->main(argc, argv);
-
-    // ret = v4l2->main(argc, argv);
-
-    GPPipeline* pipeline = new GPPipeline();
+    shared_ptr<GPPipeline> pipeline = std::make_shared<GPPipeline>();
     std::vector<std::shared_ptr<GPlayer::IBeader> > elements{
-        v4l2, recorder, nvvideodecoder, egl};
+        v4l2, mjpegfile, nvjpegdecoder, egl};
     pipeline->Add(elements);
-    pipeline->Run();
 
-    if (ret) {
-        spdlog::info("App run failed\n");
-    }
-    else {
-        spdlog::info("App run was successful\n");
-    }
+    nvvideodecoder->Link(h264file);
+    nvvideodecoder->Link(egl);
 
-    delete pipeline;
+    v4l2->Link(mjpegfile);
+    v4l2->Link(nvjpegdecoder);
+    v4l2->Link(nvvideodecoder);
+
+    ret = pipeline->Run();
+
+    GPMessage msg;
+    while (pipeline->GetMessage(&msg)) {
+        if (msg.type == GPMessageType::ERROR) {
+            break;
+        }
+        else if (msg.type == GPMessageType::STATE_CHANGED) {
+        }
+        else {
+        }
+    };
 
     return ret;
 }

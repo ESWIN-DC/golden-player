@@ -60,6 +60,7 @@ private:
 class CameraRecorder : public IBeader {
 public:
     std::string GetInfo() const;
+    bool HasProc() override { return false; };
     void Process(GPData* data);
     bool Execute();
 

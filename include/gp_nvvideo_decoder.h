@@ -72,7 +72,7 @@ public:
     explicit GPNvVideoDecoder(const shared_ptr<VideoDecodeContext_T> context);
     ~GPNvVideoDecoder();
 
-    std::string GetInfo() const;
+    std::string GetInfo() const override;
 
     void Process(GPData* data);
 
@@ -120,7 +120,8 @@ private:
     bool decoder_proc_blocking(bool eos,
                                uint32_t current_file,
                                int current_loop);
-    int decode_proc();
+    int Proc() override;
+    bool HasProc() override { return true; };
 
     static int decodeProc(GPNvVideoDecoder* decoder);
 

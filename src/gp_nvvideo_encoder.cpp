@@ -45,7 +45,7 @@ GPNvVideoEncoder::GPNvVideoEncoder(
     SetType(BeaderType::NvVideoEncoder);
     ctx_ = context;
 
-    encode_thread_ = std::thread(encodeProc, this);
+    // encode_thread_ = std::thread(encodeProc, this);
 }
 
 GPNvVideoEncoder::~GPNvVideoEncoder()
@@ -122,7 +122,7 @@ bool GPNvVideoEncoder::encoder_capture_plane_dq_callback(
 
     // videoEncoder->write_encoder_output_frame(ctx->out_file, buffer);
     GPFileSink* handler = dynamic_cast<GPFileSink*>(
-        videoEncoder->GetBeader(BeaderType::FileSink));
+        videoEncoder->GetBeader(BeaderType::FileSink).get());
     if (handler) {
         GPBuffer gpbuffer(buffer->planes[0].data, buffer->planes[0].bytesused);
         GPData data(&gpbuffer);
@@ -1006,7 +1006,7 @@ cleanup:
     return -1;
 }
 
-int GPNvVideoEncoder::encode_proc()
+int GPNvVideoEncoder::Proc()
 {
     VideoEncodeContext_T* ctx = ctx_.get();
     int ret = 0;
@@ -1683,7 +1683,7 @@ int GPNvVideoEncoder::ReadFrame(NvBuffer& buffer)
 
 int GPNvVideoEncoder::encodeProc(GPNvVideoEncoder* encoder)
 {
-    return encoder->encode_proc();
+    return encoder->Proc();
 }
 
 bool GPNvVideoEncoder::SaveConfiguration(const std::string& configuration)

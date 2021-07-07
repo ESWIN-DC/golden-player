@@ -51,7 +51,7 @@ public:
     explicit GPNvVideoEncoder(const shared_ptr<VideoEncodeContext_T> context);
     ~GPNvVideoEncoder();
 
-    std::string GetInfo() const;
+    std::string GetInfo() const override;
     void Process(GPData* data);
 
     void Abort();
@@ -158,7 +158,8 @@ public:
     static void* encoder_pollthread_fcn(void* arg);
     int encoder_proc_nonblocking(bool eos);
     int encoder_proc_blocking(bool eos);
-    int encode_proc();
+    int Proc() override;
+    bool HasProc() override { return true; };
     static int encodeProc(GPNvVideoEncoder* encoder);
     int ReadFrame(NvBuffer& buffer);
 

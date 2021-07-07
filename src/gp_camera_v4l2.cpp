@@ -266,8 +266,8 @@ bool GPCameraV4l2::camera_initialize(v4l2_context_t* ctx)
 
 bool GPCameraV4l2::init_components(v4l2_context_t* ctx)
 {
-    GPDisplayEGL* display =
-        dynamic_cast<GPDisplayEGL*>(GetBeader(BeaderType::EGLDisplaySink));
+    GPDisplayEGL* display = dynamic_cast<GPDisplayEGL*>(
+        GetBeader(BeaderType::EGLDisplaySink).get());
 
     if (!camera_initialize(ctx))
         ERROR_RETURN("Failed to initialize camera device");
@@ -484,10 +484,10 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
     struct sigaction sig_action;
     struct pollfd fds[1];
     NvBufferTransformParams transParams;
-    GPNvJpegDecoder* jpeg_decoder =
-        dynamic_cast<GPNvJpegDecoder*>(GetBeader(BeaderType::NvJpegDecoder));
-    GPDisplayEGL* display =
-        dynamic_cast<GPDisplayEGL*>(GetBeader(BeaderType::EGLDisplaySink));
+    GPNvJpegDecoder* jpeg_decoder = dynamic_cast<GPNvJpegDecoder*>(
+        GetBeader(BeaderType::NvJpegDecoder).get());
+    GPDisplayEGL* display = dynamic_cast<GPDisplayEGL*>(
+        GetBeader(BeaderType::EGLDisplaySink).get());
 
     // Ensure a clean shutdown if user types <ctrl+c>
     sig_action.sa_handler = signal_handle;
@@ -549,8 +549,8 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
             if (ctx->frame == ctx->save_n_frame)
                 save_frame_to_file(ctx, &v4l2_buf);
 
-            GPFileSink* buffer_handler =
-                dynamic_cast<GPFileSink*>(GetBeader(BeaderType::FileSink));
+            GPFileSink* buffer_handler = dynamic_cast<GPFileSink*>(
+                GetBeader(BeaderType::FileSink).get());
             if (buffer_handler) {
                 GPBuffer gpbuffer(pbuf, bufsize);
                 GPData data(&gpbuffer);
@@ -596,7 +596,7 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
                      ctx->cam_pixfmt == V4L2_PIX_FMT_VP9 ||
                      ctx->cam_pixfmt == V4L2_PIX_FMT_MPEG2 ||
                      ctx->cam_pixfmt == V4L2_PIX_FMT_MPEG4) {
-                IBeader* decoder = GetBeader(BeaderType::NvVideoDecoder);
+                IBeader* decoder = GetBeader(BeaderType::NvVideoDecoder).get();
                 if (decoder) {
                     GPBuffer gpbuffer(pbuf, bufsize);
                     GPData data(&gpbuffer);
@@ -649,7 +649,7 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
     if (ctx->cam_pixfmt == V4L2_PIX_FMT_MJPEG) {
         // delete ctx->jpegdec;
         // bad procedure!
-        RemoveBeader(jpeg_decoder);
+        Unlink(jpeg_decoder);
     }
 
     return true;
@@ -671,10 +671,10 @@ bool GPCameraV4l2::stop_stream(v4l2_context_t* ctx)
 
 void GPCameraV4l2::Process(GPData* data)
 {
-    main(0, NULL);
+    Proc();
 }
 
-int GPCameraV4l2::main(int argc, char* argv[])
+int GPCameraV4l2::Proc()
 {
     v4l2_context_t& ctx = ctx_;
     int error = 0;
@@ -708,13 +708,7 @@ cleanup:
     if (ctx.cam_fd > 0)
         close(ctx.cam_fd);
 
-    // if (ctx.renderer != NULL)
-    //     delete ctx.renderer;
-
-    // if (ctx.egl_display && !eglTerminate(ctx.egl_display))
-    //     printf("Failed to terminate EGL display connection\n");
-
-    RemoveBeader(BeaderType::EGLDisplaySink);
+    Unlink(BeaderType::EGLDisplaySink);
 
     if (ctx.g_buff != NULL) {
         for (unsigned i = 0; i < V4L2_BUFFERS_NUM; i++) {

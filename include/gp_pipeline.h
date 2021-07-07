@@ -2,8 +2,11 @@
 #ifndef __GPPIPELINE__
 #define __GPPIPELINE__
 
+#include <chrono>
+#include <condition_variable>
 #include <list>
 #include <memory>
+#include <queue>
 
 #include "beader.h"
 
@@ -26,19 +29,23 @@ class GPPipeline {
 private:
 public:
     GPPipeline();
+    ~GPPipeline();
     bool Add(const std::shared_ptr<IBeader>& element);
     bool Add(std::vector<std::shared_ptr<IBeader>>& elementList);
     bool Insert(const std::shared_ptr<IBeader>& element);
     bool Tee(const std::shared_ptr<IBeader>& element);
     bool Run();
     bool Reload();
-    bool Terminate();
-
-private:
+    void Terminate();
+    bool AddMessage(const GPMessage& msg);
     bool GetMessage(GPMessage* msg);
 
 private:
     std::vector<std::shared_ptr<IBeader>> elements_;
+    std::vector<std::thread> threads_;
+    std::deque<GPMessage> messages_;
+    std::mutex mutex_;
+    std::condition_variable cv_;
 };
 
 }  // namespace GPlayer

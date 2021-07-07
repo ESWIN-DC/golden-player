@@ -41,18 +41,18 @@ int main(int argc, char* argv[])
     shared_ptr<GPFileSink> orignfile =
         std::make_shared<GPFileSink>(std::string("try001.orgin"));
 
-    nvvideodecoder->AddBeader(h264file.get());
-    nvvideodecoder->AddBeader(egl.get());
+    nvvideodecoder->Link(h264file);
+    nvvideodecoder->Link(egl);
 
-    v4l2->AddBeader(orignfile.get());
-    v4l2->AddBeader(nvjpegdecoder.get());
-    v4l2->AddBeader(nvvideodecoder.get());
+    v4l2->Link(orignfile);
+    v4l2->Link(nvjpegdecoder);
+    v4l2->Link(nvvideodecoder);
 
-    // v4l2->AddBeader(egl.get());
+    // v4l2->Link(egl);
 
     // recorder->main(argc, argv);
 
-    ret = v4l2->main(argc, argv);
+    // ret = v4l2->main(argc, argv);
 
     GPPipeline* pipeline = new GPPipeline();
     pipeline->Add(v4l2);
