@@ -52,15 +52,13 @@ int main(int argc, char* argv[])
 
     // recorder->main(argc, argv);
 
-    ret = v4l2->main(argc, argv);
+    // ret = v4l2->main(argc, argv);
 
     GPPipeline* pipeline = new GPPipeline();
-    pipeline->Add(v4l2);
-    pipeline->Add(recorder);
-    pipeline->Add(nvvideoencoder);
-    pipeline->Add(nvvideodecoder);
-
-    // pipeline->Run();
+    std::vector<std::shared_ptr<GPlayer::IBeader> > elements{
+        v4l2, recorder, nvvideodecoder, egl};
+    pipeline->Add(elements);
+    pipeline->Run();
 
     if (ret) {
         spdlog::info("App run failed\n");

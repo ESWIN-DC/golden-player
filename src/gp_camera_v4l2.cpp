@@ -731,7 +731,7 @@ cleanup:
     return -error;
 }
 
-int GPCameraV4l2::SaveConfiguration(const std::string& configuration)
+bool GPCameraV4l2::SaveConfiguration(const std::string& configuration)
 {
     using nlohmann::json;
 
@@ -743,9 +743,11 @@ int GPCameraV4l2::SaveConfiguration(const std::string& configuration)
     j["height"] = 480;
 
     o << j.dump(4);
+
+    return true;
 }
 
-int GPCameraV4l2::LoadConfiguration()
+bool GPCameraV4l2::LoadConfiguration()
 {
     using nlohmann::json;
 
@@ -785,6 +787,8 @@ int GPCameraV4l2::LoadConfiguration()
 
     ctx->enable_cuda = false;
     ctx->enable_verbose = false;
+
+    return true;
 }
 
 }  // namespace GPlayer

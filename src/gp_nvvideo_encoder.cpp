@@ -1686,7 +1686,7 @@ int GPNvVideoEncoder::encodeProc(GPNvVideoEncoder* encoder)
     return encoder->encode_proc();
 }
 
-int GPNvVideoEncoder::SaveConfiguration(const std::string& configuration)
+bool GPNvVideoEncoder::SaveConfiguration(const std::string& configuration)
 {
     using nlohmann::json;
 
@@ -1694,9 +1694,11 @@ int GPNvVideoEncoder::SaveConfiguration(const std::string& configuration)
     json j;
 
     o << j;
+
+    return true;
 }
 
-int GPNvVideoEncoder::LoadConfiguration()
+bool GPNvVideoEncoder::LoadConfiguration()
 {
     using nlohmann::json;
 
@@ -1705,6 +1707,8 @@ int GPNvVideoEncoder::LoadConfiguration()
     i >> j;
 
     ctx_->blocking_mode = j["blocking_mode"].get<int>();
+
+    return true;
 }
 
 }  // namespace GPlayer

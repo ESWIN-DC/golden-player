@@ -110,8 +110,8 @@ public:
     // bool ReadFrame(NvBuffer& buffer);
     int main(int argc, char* argv[]);
 
-    int SaveConfiguration(const std::string& configuration);
-    int LoadConfiguration();
+    bool SaveConfiguration(const std::string& configuration);
+    bool LoadConfiguration();
 
 private:
     v4l2_context_t ctx_;

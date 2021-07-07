@@ -162,8 +162,8 @@ public:
     static int encodeProc(GPNvVideoEncoder* encoder);
     int ReadFrame(NvBuffer& buffer);
 
-    int SaveConfiguration(const std::string& configuration);
-    int LoadConfiguration();
+    bool SaveConfiguration(const std::string& configuration);
+    bool LoadConfiguration();
 
 private:
     shared_ptr<VideoEncodeContext_T> ctx_;

@@ -52,7 +52,7 @@ $(ALGO_CUDA_DIR)/%.o: $(ALGO_CUDA_DIR)/%.cpp
 $(ALGO_CUDA_DIR)/%.o: $(ALGO_CUDA_DIR)/%.cu
 	$(AT)$(MAKE) -C $(ALGO_CUDA_DIR)
 
-%.o: %.cpp
+%.o: %.cpp $(wildcard $(TOP_DIR)/include/*.h)
 	@echo "Compiling: $<"
 	$(CPP) $(CPPFLAGS) -c $< -o $@
 
