@@ -8,7 +8,7 @@
 #include <memory>
 #include <queue>
 
-#include "beader.h"
+#include "gp_beader.h"
 
 namespace GPlayer {
 

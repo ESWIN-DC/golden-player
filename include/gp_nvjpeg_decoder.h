@@ -1,7 +1,7 @@
 #ifndef __GPNVJPEG_DECODER__
 #define __GPNVJPEG_DECODER__
 
-#include "beader.h"
+#include "gp_beader.h"
 
 #include "NvJpegDecoder.h"
 

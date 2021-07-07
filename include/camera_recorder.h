@@ -14,7 +14,7 @@
 #include "gp_log.h"
 
 #include "Thread.h"
-#include "beader.h"
+#include "gp_beader.h"
 #include "nvmmapi/NvNativeBuffer.h"
 
 using namespace Argus;

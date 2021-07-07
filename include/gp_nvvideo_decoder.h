@@ -20,8 +20,8 @@
 #include "NvApplicationProfiler.h"
 #include "NvUtils.h"
 
-#include "beader.h"
 #include "context.h"
+#include "gp_beader.h"
 #include "gp_circular_buffer.h"
 #include "gplayer.h"
 

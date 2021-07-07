@@ -1,7 +1,7 @@
 #ifndef __GPDISPLAY_EGL___
 #define __GPDISPLAY_EGL___
 
-#include "beader.h"
+#include "gp_beader.h"
 namespace GPlayer {
 
 class Display {

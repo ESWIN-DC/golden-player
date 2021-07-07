@@ -8,6 +8,7 @@ CPPFLAGS += \
 	-I"$(TOP_DIR)/include"
 
 SRCS := \
+	gp_beader.cpp \
 	video_decode_context.cpp \
 	video_encode_context.cpp \
 	gp_nvvideo_decoder.cpp \

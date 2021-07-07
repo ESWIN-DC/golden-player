@@ -12,7 +12,7 @@
 
 #include "NvJpegDecoder.h"
 
-#include "beader.h"
+#include "gp_beader.h"
 
 #include "gp_nvjpeg_decoder.h"
 #include "gp_nvvideo_encoder.h"

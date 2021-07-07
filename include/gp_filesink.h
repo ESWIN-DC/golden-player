@@ -3,7 +3,7 @@
 
 #include <fstream>
 #include <string>
-#include "beader.h"
+#include "gp_beader.h"
 #include "gp_data.h"
 
 namespace GPlayer {

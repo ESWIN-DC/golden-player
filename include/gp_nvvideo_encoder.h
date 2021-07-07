@@ -19,7 +19,7 @@
 #include "context.h"
 #include "gplayer.h"
 
-#include "beader.h"
+#include "gp_beader.h"
 
 #include "NvVideoEncoder.h"
 
