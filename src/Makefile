@@ -9,6 +9,7 @@ CPPFLAGS += \
 
 SRCS := \
 	gp_beader.cpp \
+	gp_configuration.cpp \
 	video_decode_context.cpp \
 	video_encode_context.cpp \
 	gp_nvvideo_decoder.cpp \

@@ -12,7 +12,6 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <new>
 
 #include <fstream>
 #include "nlohmann/json.hpp"
@@ -26,6 +25,25 @@ namespace GPlayer {
 static bool quit = false;
 
 using namespace std;
+
+GPCameraV4l2::GPCameraV4l2()
+{
+    SetType(BeaderType::CameraV4l2Src);
+
+    nvcolor_fmt_ = {
+        // TODO: add more pixel format mapping
+        {"UYVY", V4L2_PIX_FMT_UYVY, NvBufferColorFormat_UYVY},
+        {"VYUY", V4L2_PIX_FMT_VYUY, NvBufferColorFormat_VYUY},
+        {"YUYV", V4L2_PIX_FMT_YUYV, NvBufferColorFormat_YUYV},
+        {"YVYU", V4L2_PIX_FMT_YVYU, NvBufferColorFormat_YVYU},
+        {"GREY", V4L2_PIX_FMT_GREY, NvBufferColorFormat_GRAY8},
+        {"YUV420M", V4L2_PIX_FMT_YUV420M, NvBufferColorFormat_YUV420},
+        {"MJPEG", V4L2_PIX_FMT_MJPEG, NvBufferColorFormat_Invalid},
+        {"unknown", V4L2_PIX_FMT_YUYV, NvBufferColorFormat_Invalid}, // default
+    };
+
+    set_defaults();
+}
 
 std::string GPCameraV4l2::GetInfo() const
 {
@@ -118,8 +136,9 @@ bool GPCameraV4l2::parse_cmdline(v4l2_context_t* ctx, int argc, char** argv)
     return true;
 }
 
-void GPCameraV4l2::set_defaults(v4l2_context_t* ctx)
+void GPCameraV4l2::set_defaults()
 {
+    v4l2_context_t* ctx = &ctx_;
     memset(ctx, 0, sizeof(v4l2_context_t));
 
     ctx->cam_devname = "/dev/video0";
@@ -129,26 +148,36 @@ void GPCameraV4l2::set_defaults(v4l2_context_t* ctx)
     ctx->cam_h = 480;
     ctx->frame = 0;
     ctx->save_n_frame = 0;
-
     ctx->g_buff = NULL;
     ctx->capture_dmabuf = true;
     ctx->fps = 30;
-
     ctx->enable_cuda = false;
-
     ctx->enable_verbose = false;
 }
 
-NvBufferColorFormat GPCameraV4l2::get_nvbuff_color_fmt(unsigned int v4l2_pixfmt)
+const nv_color_fmt* GPCameraV4l2::get_nvbuff_color_fmt(int v4l2_pixfmt)
 {
     unsigned i;
 
     for (i = 0; i < nvcolor_fmt_.size(); i++) {
         if (v4l2_pixfmt == nvcolor_fmt_[i].v4l2_pixfmt)
-            return nvcolor_fmt_[i].nvbuff_color;
+            return &nvcolor_fmt_[i];
     }
 
-    return NvBufferColorFormat_Invalid;
+    return NULL;
+}
+
+const nv_color_fmt* GPCameraV4l2::get_nvbuff_color_fmt(const char* fmtstr)
+{
+    unsigned i;
+
+    for (i = 0; i < nvcolor_fmt_.size(); i++) {
+        if (std::strcmp(fmtstr, nvcolor_fmt_[i].name) == 0) {
+            return &nvcolor_fmt_[i];
+        }
+    }
+
+    return NULL;
 }
 
 bool GPCameraV4l2::save_frame_to_file(v4l2_context_t* ctx,
@@ -382,7 +411,10 @@ bool GPCameraV4l2::prepare_buffers_mjpeg(v4l2_context_t* ctx)
     input_params.width = ctx->cam_w;
     input_params.height = ctx->cam_h;
     input_params.layout = NvBufferLayout_Pitch;
-    input_params.colorFormat = get_nvbuff_color_fmt(V4L2_PIX_FMT_YUV420M);
+    const nv_color_fmt* fmt = get_nvbuff_color_fmt(V4L2_PIX_FMT_YUV420M);
+    if (fmt == NULL) {
+        input_params.colorFormat = fmt->nvbuff_color;
+    }
     input_params.nvbuf_tag = NvBufferTag_NONE;
     // Create Render buffer
     if (-1 == NvBufferCreateEx(&ctx->render_dmabuf_fd, &input_params))
@@ -415,7 +447,8 @@ bool GPCameraV4l2::prepare_buffers(v4l2_context_t* ctx)
         int fd;
         NvBufferParams params = {0};
 
-        input_params.colorFormat = get_nvbuff_color_fmt(ctx->cam_pixfmt);
+        input_params.colorFormat =
+            get_nvbuff_color_fmt(ctx->cam_pixfmt)->nvbuff_color;
         input_params.nvbuf_tag = NvBufferTag_CAMERA;
         if (-1 == NvBufferCreateEx(&fd, &input_params))
             ERROR_RETURN("Failed to create NvBuffer");
@@ -439,7 +472,8 @@ bool GPCameraV4l2::prepare_buffers(v4l2_context_t* ctx)
         }
     }
 
-    input_params.colorFormat = get_nvbuff_color_fmt(V4L2_PIX_FMT_YUV420M);
+    input_params.colorFormat =
+        get_nvbuff_color_fmt(V4L2_PIX_FMT_YUV420M)->nvbuff_color;
     input_params.nvbuf_tag = NvBufferTag_NONE;
     // Create Render buffer
     if (-1 == NvBufferCreateEx(&ctx->render_dmabuf_fd, &input_params))
@@ -668,22 +702,15 @@ bool GPCameraV4l2::stop_stream(v4l2_context_t* ctx)
     return true;
 }
 
-void GPCameraV4l2::Process(GPData* data)
-{
-    Proc();
-}
-
 int GPCameraV4l2::Proc()
 {
     v4l2_context_t& ctx = ctx_;
     int error = 0;
 
-    set_defaults(&ctx);
-
     //  ./camera_v4l2_cuda -d /dev/video0 -s 640x480 -f YUYV -n 30 -c
     // CHECK_ERROR(parse_cmdline(&ctx, argc, argv), cleanup,
     //             "Invalid options specified");
-    LoadConfiguration();
+    // LoadConfiguration();
 
     CHECK_ERROR(init_components(&ctx), cleanup,
                 "Failed to initialize v4l2 components");
@@ -724,29 +751,41 @@ cleanup:
     return -error;
 }
 
-bool GPCameraV4l2::SaveConfiguration(const std::string& configuration)
+bool GPCameraV4l2::SaveConfiguration(const std::string& filename)
 {
     using nlohmann::json;
 
-    std::ofstream o(configuration);
+    std::ofstream o(filename);
     json j;
 
-    j["device"] = "/dev/video0";
-    j["width"] = 640;
-    j["height"] = 480;
+    j["device"] = ctx_.cam_devname;
+    const nv_color_fmt* fmt = get_nvbuff_color_fmt(ctx_.cam_pixfmt);
+    if (fmt == NULL) {
+        j["cam_pixfmt"] = "unknown";
+    }
+    else {
+        j["cam_pixfmt"] = fmt->name;
+    }
+
+    j["cam_w"] = ctx_.cam_w;
+    j["cam_h"] = ctx_.cam_h;
+    j["save_n_frame"] = ctx_.save_n_frame;
+    j["fps"] = ctx_.fps;
+    j["enable_cuda"] = ctx_.enable_cuda;
+    j["enable_verbose"] = ctx_.enable_verbose;
 
     o << j.dump(4);
 
     return true;
 }
 
-bool GPCameraV4l2::LoadConfiguration()
+bool GPCameraV4l2::LoadConfiguration(const std::string& filename)
 {
     using nlohmann::json;
 
     v4l2_context_t* ctx = &ctx_;
     bool parse_ok = true;
-    std::ifstream i("camera.json");
+    std::ifstream i(filename);
     json j;
 
     try {
@@ -755,31 +794,44 @@ bool GPCameraV4l2::LoadConfiguration()
     catch (json::parse_error& e) {
         SPDLOG_ERROR("Paser error: {}", e.what());
         parse_ok = false;
+        return false;
     }
 
     if (parse_ok) {
-        auto device = j["device"];
-        ctx->cam_devname = device.get<std::string>();
+        if (j.contains("device")) {
+            ctx->cam_devname = j["device"].get<std::string>();
+        }
+
+        if (j.contains("cam_pixfmt")) {
+            std::string cam_pixfmt = j["cam_pixfmt"].get<std::string>();
+            const nv_color_fmt* fmt = get_nvbuff_color_fmt(cam_pixfmt.c_str());
+            ctx->cam_pixfmt = fmt ? fmt->v4l2_pixfmt : V4L2_PIX_FMT_YUYV;
+        }
+
+        if (j.contains("cam_w")) {
+            ctx->cam_w = j["cam_w"].get<int>();
+        }
+
+        if (j.contains("cam_h")) {
+            ctx->cam_h = j["cam_h"].get<int>();
+        }
+
+        if (j.contains("save_n_frame")) {
+            ctx->save_n_frame = j["save_n_frame"].get<int>();
+        }
+
+        if (j.contains("fps")) {
+            ctx->fps = j["fps"].get<int>();
+        }
+
+        if (j.contains("enable_cuda")) {
+            ctx->enable_cuda = j["enable_cuda"].get<bool>();
+        }
+
+        if (j.contains("enable_verbose")) {
+            ctx->enable_verbose = j["enable_verbose"].get<bool>();
+        }
     }
-
-    // SaveConfiguration("cameraV4l2.json");
-
-    if (!ctx->cam_devname.empty()) {
-        SPDLOG_INFO("cam_devname: {}", ctx->cam_devname);
-    }
-
-    ctx->cam_pixfmt = V4L2_PIX_FMT_YVYU;
-    ctx->cam_w = 640;
-    ctx->cam_h = 480;
-    ctx->frame = 0;
-    ctx->save_n_frame = 0;
-
-    ctx->g_buff = NULL;
-    ctx->capture_dmabuf = true;
-    ctx->fps = 30;
-
-    ctx->enable_cuda = false;
-    ctx->enable_verbose = false;
 
     return true;
 }

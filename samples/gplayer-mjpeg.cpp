@@ -35,6 +35,8 @@ int main(int argc, char* argv[])
         v4l2, mjpegfile, nvjpegdecoder, egl};
     pipeline->Add(elements);
 
+    v4l2->LoadConfiguration("camera-v4l2.json");
+
     v4l2->Link(egl);
     v4l2->Link(mjpegfile);
     v4l2->Link(nvjpegdecoder);

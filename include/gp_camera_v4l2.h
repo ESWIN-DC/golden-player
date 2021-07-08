@@ -45,7 +45,7 @@ typedef struct {
     nv_buffer* g_buff;
     bool capture_dmabuf;
 
-    // // EGL renderer
+    // EGL renderer
     int render_dmabuf_fd;
     int fps;
 
@@ -59,7 +59,8 @@ typedef struct {
 
 // Correlate v4l2 pixel format and NvBuffer color format
 typedef struct {
-    unsigned int v4l2_pixfmt;
+    const char* name;
+    int v4l2_pixfmt;
     NvBufferColorFormat nvbuff_color;
 } nv_color_fmt;
 
@@ -68,29 +69,20 @@ private:
     std::vector<nv_color_fmt> nvcolor_fmt_;
 
 public:
-    GPCameraV4l2()
-    {
-        SetType(BeaderType::CameraV4l2Src);
-
-        nvcolor_fmt_ = {
-            // TODO add more pixel format mapping
-            {V4L2_PIX_FMT_UYVY, NvBufferColorFormat_UYVY},
-            {V4L2_PIX_FMT_VYUY, NvBufferColorFormat_VYUY},
-            {V4L2_PIX_FMT_YUYV, NvBufferColorFormat_YUYV},
-            {V4L2_PIX_FMT_YVYU, NvBufferColorFormat_YVYU},
-            {V4L2_PIX_FMT_GREY, NvBufferColorFormat_GRAY8},
-            {V4L2_PIX_FMT_YUV420M, NvBufferColorFormat_YUV420},
-        };
-    }
-
+    explicit GPCameraV4l2();
     std::string GetInfo() const override;
     bool HasProc() override { return true; };
     int Proc() override;
     void Process(GPData* data);
+    bool SaveConfiguration(const std::string& filename);
+    bool LoadConfiguration(const std::string& filename);
+
+private:
     void print_usage(void);
     bool parse_cmdline(v4l2_context_t* ctx, int argc, char** argv);
-    void set_defaults(v4l2_context_t* ctx);
-    NvBufferColorFormat get_nvbuff_color_fmt(unsigned int v4l2_pixfmt);
+    void set_defaults();
+    const nv_color_fmt* get_nvbuff_color_fmt(int v4l2_pixfmt);
+    const nv_color_fmt* get_nvbuff_color_fmt(const char* fmtstr);
     bool save_frame_to_file(v4l2_context_t* ctx, struct v4l2_buffer* buf);
     bool nvbuff_do_clearchroma(int dmabuf_fd);
     bool camera_initialize(v4l2_context_t* ctx);
@@ -103,8 +95,6 @@ public:
     static void signal_handle(int signum);
     bool start_capture(v4l2_context_t* ctx);
     bool stop_stream(v4l2_context_t* ctx);
-    bool SaveConfiguration(const std::string& configuration);
-    bool LoadConfiguration();
 
 private:
     v4l2_context_t ctx_;
