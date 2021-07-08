@@ -38,38 +38,37 @@ int main(int argc, char* argv[])
     shared_ptr<GPDisplayEGL> egl = std::make_shared<GPDisplayEGL>();
     shared_ptr<GPFileSink> h264file =
         std::make_shared<GPFileSink>(std::string("try001.h264"));
-    shared_ptr<GPFileSink> orignfile =
-        std::make_shared<GPFileSink>(std::string("try001.orgin"));
+    shared_ptr<GPFileSink> mjpegfile =
+        std::make_shared<GPFileSink>(std::string("try001.mjpeg"));
 
-    nvvideodecoder->AddBeader(h264file.get());
-    nvvideodecoder->AddBeader(egl.get());
+    shared_ptr<GPPipeline> pipeline = std::make_shared<GPPipeline>();
+    std::vector<std::shared_ptr<GPlayer::IBeader> > elements{
+        v4l2, mjpegfile, nvjpegdecoder, egl};
+    pipeline->Add(elements);
 
-    v4l2->AddBeader(orignfile.get());
-    v4l2->AddBeader(nvjpegdecoder.get());
-    v4l2->AddBeader(nvvideodecoder.get());
+    nvvideodecoder->Link(h264file);
+    nvvideodecoder->Link(egl);
 
-    // v4l2->AddBeader(egl.get());
+    v4l2->Link(mjpegfile);
+    v4l2->Link(nvjpegdecoder);
+    v4l2->Link(nvvideodecoder);
 
-    // recorder->main(argc, argv);
+    ret = pipeline->Run();
 
-    ret = v4l2->main(argc, argv);
+    GPMessage msg;
+    for (;;) {
+        if (!pipeline->GetMessage(&msg)) {
+            continue;
+        }
 
-    GPPipeline* pipeline = new GPPipeline();
-    pipeline->Add(v4l2);
-    pipeline->Add(recorder);
-    pipeline->Add(nvvideoencoder);
-    pipeline->Add(nvvideodecoder);
-
-    // pipeline->Run();
-
-    if (ret) {
-        spdlog::info("App run failed\n");
-    }
-    else {
-        spdlog::info("App run was successful\n");
-    }
-
-    delete pipeline;
+        if (msg.type == GPMessageType::ERROR) {
+            break;
+        }
+        else if (msg.type == GPMessageType::STATE_CHANGED) {
+        }
+        else {
+        }
+    };
 
     return ret;
 }

@@ -1,6 +1,9 @@
 *.o
 *.a
-gplayer
+samples/gplayer
+samples/gplayer-h264
+samples/gplayer-mjpeg
 .ccls-cache
 .ccls
 third_party/
+dist/

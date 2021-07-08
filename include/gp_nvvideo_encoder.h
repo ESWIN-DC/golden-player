@@ -19,7 +19,7 @@
 #include "context.h"
 #include "gplayer.h"
 
-#include "beader.h"
+#include "gp_beader.h"
 
 #include "NvVideoEncoder.h"
 
@@ -51,7 +51,7 @@ public:
     explicit GPNvVideoEncoder(const shared_ptr<VideoEncodeContext_T> context);
     ~GPNvVideoEncoder();
 
-    std::string GetInfo() const;
+    std::string GetInfo() const override;
     void Process(GPData* data);
 
     void Abort();
@@ -158,18 +158,18 @@ public:
     static void* encoder_pollthread_fcn(void* arg);
     int encoder_proc_nonblocking(bool eos);
     int encoder_proc_blocking(bool eos);
-    int encode_proc();
+    int Proc() override;
+    bool HasProc() override { return true; };
     static int encodeProc(GPNvVideoEncoder* encoder);
     int ReadFrame(NvBuffer& buffer);
 
-    int SaveConfiguration(const std::string& configuration);
-    int LoadConfiguration();
+    bool SaveConfiguration(const std::string& configuration);
+    bool LoadConfiguration();
 
 private:
     shared_ptr<VideoEncodeContext_T> ctx_;
     std::vector<GPData*> frames_;
     std::mutex frames_mutex_;
-    std::thread encode_thread_;
 };  // class GPNvVideoEncoder
 
 }  // namespace GPlayer

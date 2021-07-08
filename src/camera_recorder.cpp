@@ -11,6 +11,34 @@ using namespace Argus;
 
 namespace GPlayer {
 
+// Constant configuration.
+static const int MAX_ENCODER_FRAMES = 5;
+static const int DEFAULT_FPS = 30;
+static const int Y_INDEX = 0;
+static const int START_POS = 32;
+static const int FONT_SIZE = 64;
+static const int SHIFT_BITS = 3;
+static const int array_n[8][8] = {
+    {1, 1, 0, 0, 0, 0, 1, 1}, {1, 1, 1, 0, 0, 0, 1, 1},
+    {1, 1, 1, 1, 0, 0, 1, 1}, {1, 1, 1, 1, 1, 0, 1, 1},
+    {1, 1, 0, 1, 1, 1, 1, 1}, {1, 1, 0, 0, 1, 1, 1, 1},
+    {1, 1, 0, 0, 0, 1, 1, 1}, {1, 1, 0, 0, 0, 0, 1, 1}};
+
+// Configurations which can be overrided by cmdline
+static int CAPTURE_TIME = 5;  // In seconds.
+static uint32_t CAMERA_INDEX = 0;
+static std::string OUTPUT_FILENAME("output.h264");
+static uint32_t ENCODER_PIXFMT = V4L2_PIX_FMT_H264;
+static bool DO_STAT = false;
+static bool VERBOSE_ENABLE = false;
+static bool DO_CPU_PROCESS = false;
+
+// Debug print macros.
+#define PRODUCER_PRINT(str) SPDLOG_TRACE("PRODUCER: {}", str)
+#define CONSUMER_PRINT(str) SPDLOG_TRACE("CONSUMER: {}", str)
+
+static EGLDisplay eglDisplay = EGL_NO_DISPLAY;
+
 ConsumerThread::ConsumerThread(OutputStream* stream)
     : m_stream(stream),
       m_VideoEncoder(NULL),
@@ -111,7 +139,7 @@ bool ConsumerThread::threadExecute()
         assert(dmabuf->getFd() == v4l2_buf.m.planes[0].m.fd);
 
         if (VERBOSE_ENABLE)
-            CONSUMER_PRINT("Released frame. %d\n", dmabuf->getFd());
+            SPDLOG_TRACE("CONSUMER: Released frame. {:d}\n", dmabuf->getFd());
 
         // Acquire a Buffer from a completed capture request.
         Argus::Status status = STATUS_OK;
@@ -126,7 +154,7 @@ bool ConsumerThread::threadExecute()
         int dmabuf_fd = dmabuf->getFd();
 
         if (VERBOSE_ENABLE)
-            CONSUMER_PRINT("Acquired Frame. %d\n", dmabuf_fd);
+            SPDLOG_TRACE("CONSUMER: Acquired Frame. {:d}\n", dmabuf_fd);
 
         if (DO_CPU_PROCESS) {
             NvBufferParams par;
@@ -330,7 +358,7 @@ bool CameraRecorder::Execute()
         GP_ORIGINATE_ERROR("No cameras available");
 
     if (CAMERA_INDEX >= cameraDevices.size()) {
-        PRODUCER_PRINT("CAMERA_INDEX out of range. Fall back to 0\n");
+        SPDLOG_TRACE("PRODUCER: CAMERA_INDEX out of range. Fall back to 0\n");
         CAMERA_INDEX = 0;
     }
 

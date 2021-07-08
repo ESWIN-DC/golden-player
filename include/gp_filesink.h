@@ -3,7 +3,7 @@
 
 #include <fstream>
 #include <string>
-#include "beader.h"
+#include "gp_beader.h"
 #include "gp_data.h"
 
 namespace GPlayer {
@@ -16,6 +16,7 @@ public:
     GPFileSink(std::string filename);
     ~GPFileSink();
     std::string GetInfo() const;
+    bool HasProc() override { return false; };
     void Process(GPData* data);
 
 private:

@@ -1,4 +1,5 @@
 TOP_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+INSTALL_DIR := $(TOP_DIR)/dist
 
 # Clear the flags from env
 CPPFLAGS := -DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE
@@ -60,7 +61,7 @@ LDFLAGS += \
 endif
 
 # All common header files
-CPPFLAGS += -std=c++14 \
+CPPFLAGS += -std=c++17 \
 	-fPIC \
 	-I"$(TOP_DIR)/third_party/spdlog/include" \
 	-I"$(TOP_DIR)/third_party/json/include" \

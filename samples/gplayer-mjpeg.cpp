@@ -17,57 +17,46 @@ using namespace GPlayer;
 
 int main(int argc, char* argv[])
 {
+    spdlog::set_error_handler([](const std::string& msg) {
+        spdlog::get("console")->error("*** LOGGER ERROR ***: {}", msg);
+    });
     spdlog::set_level(spdlog::level::trace);
 
     int ret = 0;
-    shared_ptr<VideoDecodeContext_T> dcontext =
-        std::make_shared<VideoDecodeContext_T>();
-    shared_ptr<VideoEncodeContext_T> econtext =
-        std::make_shared<VideoEncodeContext_T>();
-
-    dcontext->decoder_pixfmt = V4L2_PIX_FMT_H264;
-
-    shared_ptr<GPNvVideoDecoder> nvvideodecoder =
-        std::make_shared<GPNvVideoDecoder>(dcontext);
-    shared_ptr<GPNvVideoEncoder> nvvideoencoder =
-        std::make_shared<GPNvVideoEncoder>(econtext);
-    shared_ptr<CameraRecorder> recorder = std::make_shared<CameraRecorder>();
     shared_ptr<GPNvJpegDecoder> nvjpegdecoder =
         std::make_shared<GPNvJpegDecoder>();
     shared_ptr<GPCameraV4l2> v4l2 = std::make_shared<GPCameraV4l2>();
     shared_ptr<GPDisplayEGL> egl = std::make_shared<GPDisplayEGL>();
-    shared_ptr<GPFileSink> h264file =
-        std::make_shared<GPFileSink>(std::string("try001.h264"));
-    shared_ptr<GPFileSink> orignfile =
-        std::make_shared<GPFileSink>(std::string("try001.orgin"));
+    shared_ptr<GPFileSink> mjpegfile =
+        std::make_shared<GPFileSink>(std::string("try001.mjpeg"));
 
-    // nvvideodecoder->AddBeader(h264file.get());
-    // nvvideodecoder->AddBeader(egl.get());
+    shared_ptr<GPPipeline> pipeline = std::make_shared<GPPipeline>();
+    std::vector<std::shared_ptr<GPlayer::IBeader> > elements{
+        v4l2, mjpegfile, nvjpegdecoder, egl};
+    pipeline->Add(elements);
 
-    v4l2->AddBeader(orignfile.get());
-    v4l2->AddBeader(nvjpegdecoder.get());
-    // v4l2->AddBeader(nvvideodecoder.get());
+    v4l2->LoadConfiguration("camera-v4l2.json");
 
-    v4l2->AddBeader(egl.get());
+    v4l2->Link(egl);
+    v4l2->Link(mjpegfile);
+    v4l2->Link(nvjpegdecoder);
 
-    ret = v4l2->main(argc, argv);
+    ret = pipeline->Run();
 
-    GPPipeline* pipeline = new GPPipeline();
-    pipeline->Add(v4l2);
-    pipeline->Add(recorder);
-    pipeline->Add(nvvideoencoder);
-    pipeline->Add(nvvideodecoder);
+    for (;;) {
+        GPMessage msg;
+        if (!pipeline->GetMessage(&msg)) {
+            continue;
+        }
 
-    // pipeline->Run();
-
-    if (ret) {
-        spdlog::info("App run failed\n");
-    }
-    else {
-        spdlog::info("App run was successful\n");
-    }
-
-    delete pipeline;
+        if (msg.type == GPMessageType::ERROR) {
+            break;
+        }
+        else if (msg.type == GPMessageType::STATE_CHANGED) {
+        }
+        else {
+        }
+    };
 
     return ret;
 }

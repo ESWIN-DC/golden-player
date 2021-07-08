@@ -20,8 +20,8 @@
 #include "NvApplicationProfiler.h"
 #include "NvUtils.h"
 
-#include "beader.h"
 #include "context.h"
+#include "gp_beader.h"
 #include "gp_circular_buffer.h"
 #include "gplayer.h"
 
@@ -72,7 +72,7 @@ public:
     explicit GPNvVideoDecoder(const shared_ptr<VideoDecodeContext_T> context);
     ~GPNvVideoDecoder();
 
-    std::string GetInfo() const;
+    std::string GetInfo() const override;
 
     void Process(GPData* data);
 
@@ -120,16 +120,14 @@ private:
     bool decoder_proc_blocking(bool eos,
                                uint32_t current_file,
                                int current_loop);
-    int decode_proc();
-
-    static int decodeProc(GPNvVideoDecoder* decoder);
+    int Proc() override;
+    bool HasProc() override { return true; };
 
 private:
     std::shared_ptr<VideoDecodeContext_T> ctx_;
     gp_circular_buffer<uint8_t> buffer_;
     std::mutex buffer_mutex_;
     std::condition_variable thread_condition_;
-    std::thread decode_thread_;
 };
 
 };  // namespace GPlayer

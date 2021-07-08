@@ -14,42 +14,11 @@
 #include "gp_log.h"
 
 #include "Thread.h"
-#include "beader.h"
+#include "gp_beader.h"
 #include "nvmmapi/NvNativeBuffer.h"
 
 using namespace Argus;
 using namespace ArgusSamples;
-
-// Constant configuration.
-static const int MAX_ENCODER_FRAMES = 5;
-static const int DEFAULT_FPS = 30;
-static const int Y_INDEX = 0;
-static const int START_POS = 32;
-static const int FONT_SIZE = 64;
-static const int SHIFT_BITS = 3;
-static const int array_n[8][8] = {
-    {1, 1, 0, 0, 0, 0, 1, 1}, {1, 1, 1, 0, 0, 0, 1, 1},
-    {1, 1, 1, 1, 0, 0, 1, 1}, {1, 1, 1, 1, 1, 0, 1, 1},
-    {1, 1, 0, 1, 1, 1, 1, 1}, {1, 1, 0, 0, 1, 1, 1, 1},
-    {1, 1, 0, 0, 0, 1, 1, 1}, {1, 1, 0, 0, 0, 0, 1, 1}};
-static const int NUM_BUFFERS = 10;  // This value is tricky.
-                                    // Too small value will impact the FPS.
-
-// Configurations which can be overrided by cmdline
-static int CAPTURE_TIME = 5;  // In seconds.
-static uint32_t CAMERA_INDEX = 0;
-static Size2D<uint32_t> STREAM_SIZE(640, 480);
-static std::string OUTPUT_FILENAME("output.h264");
-static uint32_t ENCODER_PIXFMT = V4L2_PIX_FMT_H264;
-static bool DO_STAT = false;
-static bool VERBOSE_ENABLE = false;
-static bool DO_CPU_PROCESS = false;
-
-// Debug print macros.
-#define PRODUCER_PRINT(...) printf("PRODUCER: " __VA_ARGS__)
-#define CONSUMER_PRINT(...) printf("CONSUMER: " __VA_ARGS__)
-
-static EGLDisplay eglDisplay = EGL_NO_DISPLAY;
 
 namespace GPlayer {
 
@@ -91,6 +60,7 @@ private:
 class CameraRecorder : public IBeader {
 public:
     std::string GetInfo() const;
+    bool HasProc() override { return false; };
     void Process(GPData* data);
     bool Execute();
 

@@ -20,51 +20,32 @@
         }                                        \
     } while (0);
 
-#define CHECK_ERROR(cond, label, fmt, ...)     \
-    if (!cond) {                               \
-        error = 1;                             \
-        SPDLOG_ERROR(fmt "\n", ##__VA_ARGS__); \
-        goto label;                            \
+#define CHECK_ERROR(cond, label, fmt) \
+    if (!cond) {                      \
+        error = 1;                    \
+        SPDLOG_ERROR(fmt "\n");       \
+        goto label;                   \
     }
 
-#define ERROR_RETURN(fmt, ...)                 \
-    do {                                       \
-        SPDLOG_ERROR(fmt "\n", ##__VA_ARGS__); \
-        return false;                          \
+#define ERROR_RETURN(fmt, ...)            \
+    do {                                  \
+        SPDLOG_ERROR(fmt, ##__VA_ARGS__); \
+        return false;                     \
     } while (0)
 
-#define GP_ERROR(_file, _func, _line, _str, ...)                          \
+#define GP_ERROR(_file, _func, _line, _str)                               \
     do {                                                                  \
         SPDLOG_ERROR("Error generated. {}, {}:{} ", _file, _func, _line); \
-        SPDLOG_ERROR(_str, ##__VA_ARGS__);                                \
-        SPDLOG_ERROR("\n");                                               \
-    } while (0)
-
-/**
- * Simply report an error.
- */
-#define GP_REPORT_ERROR(_str, ...)                                         \
-    do {                                                                   \
-        GP_ERROR(__FILE__, __FUNCTION__, __LINE__, (_str), ##__VA_ARGS__); \
+        SPDLOG_ERROR(_str);                                               \
     } while (0)
 
 /**
  * Report and return an error that was first detected in the current method.
  */
-#define GP_ORIGINATE_ERROR(_str, ...)                                      \
-    do {                                                                   \
-        GP_ERROR(__FILE__, __FUNCTION__, __LINE__, (_str), ##__VA_ARGS__); \
-        return false;                                                      \
-    } while (0)
-
-/**
- * Report an error that was first detected in the current method, then jumps to
- * the "fail:" label.
- */
-#define GP_ORIGINATE_ERROR_FAIL(_str, ...)                                  \
-    do {                                                                    \
-        LOG_ERROR(__FILE__, __FUNCTION__, __LINE__, (_str), ##__VA_ARGS__); \
-        goto fail;                                                          \
+#define GP_ORIGINATE_ERROR(_str) \
+    do {                         \
+        SPDLOG_ERROR(_str);      \
+        return false;            \
     } while (0)
 
 /**

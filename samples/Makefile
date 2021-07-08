@@ -35,12 +35,17 @@ gplayer: gplayer.o ../src/libgolden-player.a
 	$(CPP) -o $@ gplayer.o $(CPPFLAGS) $(LDFLAGS)
 
 gplayer-h264: gplayer-h264.o ../src/libgolden-player.a
-	@echo "Linking: $@"		
+	@echo "Linking: $@"
 	$(CPP) -o $@ gplayer-h264.o $(CPPFLAGS) $(LDFLAGS)
 
 gplayer-mjpeg:  gplayer-mjpeg.o ../src/libgolden-player.a
 	@echo "Linking: $@"	
 	$(CPP) -o $@ gplayer-mjpeg.o $(CPPFLAGS) $(LDFLAGS)
+
+install: $(APP)
+	@echo "Installing: $(APP)"
+	[ -d "$(INSTALL_DIR)/bin" ] || mkdir -p "$(INSTALL_DIR)/bin"
+	cp $(APP) $(INSTALL_DIR)/bin
 
 clean:
 	$(AT)rm -rf $(APP) $(OBJS)

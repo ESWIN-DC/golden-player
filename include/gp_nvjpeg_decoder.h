@@ -1,7 +1,7 @@
 #ifndef __GPNVJPEG_DECODER__
 #define __GPNVJPEG_DECODER__
 
-#include "beader.h"
+#include "gp_beader.h"
 
 #include "NvJpegDecoder.h"
 
@@ -13,7 +13,8 @@ public:
         SetType(BeaderType::NvJpegDecoder);
         jpegdec_ = NvJPEGDecoder::createJPEGDecoder("jpegdec");
     }
-    std::string GetInfo() const { return "NVJpegDecoder"; }
+    std::string GetInfo() const override { return "NVJpegDecoder"; }
+    bool HasProc() override { return false; };
 
     // bool prepare_buffers_mjpeg(uint32_t width, uint32_t height)
     // {

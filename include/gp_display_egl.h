@@ -1,7 +1,7 @@
 #ifndef __GPDISPLAY_EGL___
 #define __GPDISPLAY_EGL___
 
-#include "beader.h"
+#include "gp_beader.h"
 namespace GPlayer {
 
 class Display {
@@ -12,7 +12,8 @@ public:
     GPDisplayEGL();
     ~GPDisplayEGL();
 
-    std::string GetInfo() const;
+    std::string GetInfo() const override;
+    bool HasProc() override { return false; };
     bool Initialize(int fps,
                     bool enable_cuda,
                     uint32_t width,
