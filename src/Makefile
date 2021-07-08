@@ -62,5 +62,11 @@ $(APP): $(OBJS)
 	@echo "Linking: $@"
 	$(AR) rcs $@ $(OBJS) 
 
+install: $(APP)
+	[ -d "$(INSTALL_DIR)/include" ] || mkdir -p "$(INSTALL_DIR)/include"
+	[ -d "$(INSTALL_DIR)/lib" ] || mkdir -p "$(INSTALL_DIR)/lib"
+	cp $(TOP_DIR)/include/* $(INSTALL_DIR)/include
+	cp $(APP) $(INSTALL_DIR)/lib
+
 clean:
-	$(AT)rm -rf $(APP) $(OBJS)
+	$(AT)rm -rf $(APP) $(OBJS) $(INSTALL_DIR)

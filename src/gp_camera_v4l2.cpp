@@ -39,7 +39,7 @@ GPCameraV4l2::GPCameraV4l2()
         {"GREY", V4L2_PIX_FMT_GREY, NvBufferColorFormat_GRAY8},
         {"YUV420M", V4L2_PIX_FMT_YUV420M, NvBufferColorFormat_YUV420},
         {"MJPEG", V4L2_PIX_FMT_MJPEG, NvBufferColorFormat_Invalid},
-        {"unknown", V4L2_PIX_FMT_YUYV, NvBufferColorFormat_Invalid}, // default
+        {"unknown", V4L2_PIX_FMT_YUYV, NvBufferColorFormat_Invalid},  // default
     };
 
     set_defaults();

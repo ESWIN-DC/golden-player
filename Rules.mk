@@ -1,4 +1,5 @@
 TOP_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+INSTALL_DIR := $(TOP_DIR)/dist
 
 # Clear the flags from env
 CPPFLAGS := -DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE

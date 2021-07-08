@@ -1,6 +1,6 @@
 include Rules.mk
 
-TOPTARGETS := all clean
+TOPTARGETS := all clean install
 
 SUBDIRS := src samples
 
