@@ -132,12 +132,9 @@ void GPCameraV4l2::set_defaults(v4l2_context_t* ctx)
 
     ctx->g_buff = NULL;
     ctx->capture_dmabuf = true;
-    // ctx->renderer = NULL;
     ctx->fps = 30;
 
     ctx->enable_cuda = false;
-    // ctx->egl_image = NULL;
-    // ctx->egl_display = EGL_NO_DISPLAY;
 
     ctx->enable_verbose = false;
 }
@@ -186,28 +183,28 @@ bool GPCameraV4l2::nvbuff_do_clearchroma(int dmabuf_fd)
 
     ret = NvBufferGetParams(dmabuf_fd, &params);
     if (ret != 0)
-        ERROR_RETURN("%s: NvBufferGetParams Failed \n", __func__);
+        ERROR_RETURN("{}: NvBufferGetParams Failed \n", __func__);
 
     for (i = 1; i < params.num_planes; i++) {
         ret =
             NvBufferMemMap(dmabuf_fd, i, NvBufferMem_Read_Write, &sBaseAddr[i]);
         if (ret != 0)
-            ERROR_RETURN("%s: NvBufferMemMap Failed \n", __func__);
+            ERROR_RETURN("{}: NvBufferMemMap Failed \n", __func__);
 
         ret = NvBufferMemSyncForCpu(dmabuf_fd, i, &sBaseAddr[i]);
         if (ret != 0)
-            ERROR_RETURN("%s: NvBufferMemSyncForCpu Failed \n", __func__);
+            ERROR_RETURN("{}: NvBufferMemSyncForCpu Failed \n", __func__);
 
         size = params.height[i] * params.pitch[i];
         memset(sBaseAddr[i], 0x80, size);
 
         ret = NvBufferMemSyncForDevice(dmabuf_fd, i, &sBaseAddr[i]);
         if (ret != 0)
-            ERROR_RETURN("%s: NvBufferMemSyncForDevice Failed \n", __func__);
+            ERROR_RETURN("{}: NvBufferMemSyncForDevice Failed \n", __func__);
 
         ret = NvBufferMemUnMap(dmabuf_fd, i, &sBaseAddr[i]);
         if (ret != 0)
-            ERROR_RETURN("%s: NvBufferMemUnMap Failed \n", __func__);
+            ERROR_RETURN("{}: NvBufferMemUnMap Failed \n", __func__);
     }
 
     return true;
@@ -220,7 +217,7 @@ bool GPCameraV4l2::camera_initialize(v4l2_context_t* ctx)
     // Open camera device
     ctx->cam_fd = open(ctx->cam_devname.c_str(), O_RDWR);
     if (ctx->cam_fd == -1)
-        ERROR_RETURN("Failed to open camera device %s: %s (%d)",
+        ERROR_RETURN("Failed to open camera device {}: {} ({:d})",
                      ctx->cam_devname, strerror(errno), errno);
 
     // Set camera output format
@@ -231,14 +228,14 @@ bool GPCameraV4l2::camera_initialize(v4l2_context_t* ctx)
     fmt.fmt.pix.pixelformat = ctx->cam_pixfmt;
     fmt.fmt.pix.field = V4L2_FIELD_INTERLACED;
     if (ioctl(ctx->cam_fd, VIDIOC_S_FMT, &fmt) < 0)
-        ERROR_RETURN("Failed to set camera output format: %s (%d)",
+        ERROR_RETURN("Failed to set camera output format: {} ({:d})",
                      strerror(errno), errno);
 
     // Get the real format in case the desired is not supported
     memset(&fmt, 0, sizeof fmt);
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (ioctl(ctx->cam_fd, VIDIOC_G_FMT, &fmt) < 0)
-        ERROR_RETURN("Failed to get camera output format: %s (%d)",
+        ERROR_RETURN("Failed to get camera output format: {} ({:d})",
                      strerror(errno), errno);
     if (fmt.fmt.pix.width != ctx->cam_w || fmt.fmt.pix.height != ctx->cam_h ||
         fmt.fmt.pix.pixelformat != ctx->cam_pixfmt) {
@@ -254,9 +251,8 @@ bool GPCameraV4l2::camera_initialize(v4l2_context_t* ctx)
     ioctl(ctx->cam_fd, VIDIOC_G_PARM, &streamparm);
 
     INFO(
-        "Camera ouput format: (%d x %d)  stride: %d, imagesize: %d, frate: "
-        "%u "
-        "/ %u",
+        "Camera ouput format: ({:d} x {:d})  stride: {:d}, imagesize: {:d}, "
+        "frate: {} / {}}",
         fmt.fmt.pix.width, fmt.fmt.pix.height, fmt.fmt.pix.bytesperline,
         fmt.fmt.pix.sizeimage, streamparm.parm.capture.timeperframe.denominator,
         streamparm.parm.capture.timeperframe.numerator);
@@ -272,8 +268,13 @@ bool GPCameraV4l2::init_components(v4l2_context_t* ctx)
     if (!camera_initialize(ctx))
         ERROR_RETURN("Failed to initialize camera device");
 
-    if (!display || !display->Initialize(ctx->fps, ctx->enable_cuda, ctx->cam_w,
-                                         ctx->cam_h)) {
+    if (!display) {
+        SPDLOG_WARN("No display");
+        return false;
+    }
+
+    if (!display->Initialize(ctx->fps, ctx->enable_cuda, ctx->cam_w,
+                             ctx->cam_h)) {
         SPDLOG_WARN("Failed to initialize display");
     }
 
@@ -290,8 +291,8 @@ bool GPCameraV4l2::request_camera_buff(v4l2_context_t* ctx)
     rb.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     rb.memory = V4L2_MEMORY_DMABUF;
     if (ioctl(ctx->cam_fd, VIDIOC_REQBUFS, &rb) < 0)
-        ERROR_RETURN("Failed to request v4l2 buffers: %s (%d)", strerror(errno),
-                     errno);
+        ERROR_RETURN("Failed to request v4l2 buffers: {} ({:d})",
+                     strerror(errno), errno);
     if (rb.count != V4L2_BUFFERS_NUM)
         ERROR_RETURN("V4l2 buffer number is not as desired");
 
@@ -305,7 +306,7 @@ bool GPCameraV4l2::request_camera_buff(v4l2_context_t* ctx)
         buf.memory = V4L2_MEMORY_DMABUF;
 
         if (ioctl(ctx->cam_fd, VIDIOC_QUERYBUF, &buf) < 0)
-            ERROR_RETURN("Failed to query buff: %s (%d)", strerror(errno),
+            ERROR_RETURN("Failed to query buff: {} ({:d})", strerror(errno),
                          errno);
 
         // TODO add support for multi-planer
@@ -317,8 +318,8 @@ bool GPCameraV4l2::request_camera_buff(v4l2_context_t* ctx)
         }
 
         if (ioctl(ctx->cam_fd, VIDIOC_QBUF, &buf) < 0)
-            ERROR_RETURN("Failed to enqueue buffers: %s (%d)", strerror(errno),
-                         errno);
+            ERROR_RETURN("Failed to enqueue buffers: {} ({:d})",
+                         strerror(errno), errno);
     }
 
     return true;
@@ -333,8 +334,8 @@ bool GPCameraV4l2::request_camera_buff_mmap(v4l2_context_t* ctx)
     rb.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     rb.memory = V4L2_MEMORY_MMAP;
     if (ioctl(ctx->cam_fd, VIDIOC_REQBUFS, &rb) < 0)
-        ERROR_RETURN("Failed to request v4l2 buffers: %s (%d)", strerror(errno),
-                     errno);
+        ERROR_RETURN("Failed to request v4l2 buffers: {} ({:d})",
+                     strerror(errno), errno);
     if (rb.count != V4L2_BUFFERS_NUM)
         ERROR_RETURN("V4l2 buffer number is not as desired");
 
@@ -348,7 +349,7 @@ bool GPCameraV4l2::request_camera_buff_mmap(v4l2_context_t* ctx)
 
         buf.memory = V4L2_MEMORY_MMAP;
         if (ioctl(ctx->cam_fd, VIDIOC_QUERYBUF, &buf) < 0)
-            ERROR_RETURN("Failed to query buff: %s (%d)", strerror(errno),
+            ERROR_RETURN("Failed to query buff: {} ({:d})", strerror(errno),
                          errno);
 
         ctx->g_buff[index].size = buf.length;
@@ -360,8 +361,8 @@ bool GPCameraV4l2::request_camera_buff_mmap(v4l2_context_t* ctx)
             ERROR_RETURN("Failed to map buffers");
 
         if (ioctl(ctx->cam_fd, VIDIOC_QBUF, &buf) < 0)
-            ERROR_RETURN("Failed to enqueue buffers: %s (%d)", strerror(errno),
-                         errno);
+            ERROR_RETURN("Failed to enqueue buffers: {} ({:d})",
+                         strerror(errno), errno);
     }
 
     return true;
@@ -464,7 +465,7 @@ bool GPCameraV4l2::start_stream(v4l2_context_t* ctx)
     // Start v4l2 streaming
     type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (ioctl(ctx->cam_fd, VIDIOC_STREAMON, &type) < 0)
-        ERROR_RETURN("Failed to start streaming: %s (%d)", strerror(errno),
+        ERROR_RETURN("Failed to start streaming: {} ({:d})", strerror(errno),
                      errno);
 
     usleep(200);
@@ -500,11 +501,11 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
     struct v4l2_fmtdesc fmtdesc;
     if (ioctl(ctx->cam_fd, ctx->cam_pixfmt, &fmtdesc) == 0) {
         SPDLOG_DEBUG("pixel format = {0:x} => {}", ctx->cam_pixfmt,
-                     (char*)fmtdesc.description);
+                     std::string((char*)fmtdesc.description),
+                     sizeof(fmtdesc.description));
     }
     else {
-        SPDLOG_WARN("pixel format = {0:x}, desc = {}", ctx->cam_pixfmt,
-                    (char*)fmtdesc.description);
+        SPDLOG_WARN("pixel format = {0:x}, desc = NULL", ctx->cam_pixfmt);
     }
 
     if (ctx->cam_pixfmt == V4L2_PIX_FMT_MJPEG) {
@@ -538,7 +539,7 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
             else
                 v4l2_buf.memory = V4L2_MEMORY_MMAP;
             if (ioctl(ctx->cam_fd, VIDIOC_DQBUF, &v4l2_buf) < 0)
-                ERROR_RETURN("Failed to dequeue camera buff: %s (%d)",
+                ERROR_RETURN("Failed to dequeue camera buff: {} ({:d})",
                              strerror(errno), errno);
 
             pbuf = ctx->g_buff[v4l2_buf.index].start;
@@ -632,12 +633,12 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
 
             // Display the camera buffer
             if (display) {
-                // display->Display(ctx->enable_cuda, ctx->render_dmabuf_fd);
+                display->Display(ctx->enable_cuda, ctx->render_dmabuf_fd);
             }
 
             // Enqueue camera buff
             if (ioctl(ctx->cam_fd, VIDIOC_QBUF, &v4l2_buf))
-                ERROR_RETURN("Failed to queue camera buffers: %s (%d)",
+                ERROR_RETURN("Failed to queue camera buffers: {} ({:d})",
                              strerror(errno), errno);
         }
     }
@@ -647,9 +648,7 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
         display->printProfilingStats();
 
     if (ctx->cam_pixfmt == V4L2_PIX_FMT_MJPEG) {
-        // delete ctx->jpegdec;
-        // bad procedure!
-        Unlink(jpeg_decoder);
+        // Unlink(jpeg_decoder);
     }
 
     return true;
@@ -662,7 +661,7 @@ bool GPCameraV4l2::stop_stream(v4l2_context_t* ctx)
     // Stop v4l2 streaming
     type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (ioctl(ctx->cam_fd, VIDIOC_STREAMOFF, &type))
-        ERROR_RETURN("Failed to stop streaming: %s (%d)", strerror(errno),
+        ERROR_RETURN("Failed to stop streaming: {} ({:d})", strerror(errno),
                      errno);
 
     INFO("Camera video streaming off ...");
@@ -708,7 +707,7 @@ cleanup:
     if (ctx.cam_fd > 0)
         close(ctx.cam_fd);
 
-    Unlink(BeaderType::EGLDisplaySink);
+    // Unlink(BeaderType::EGLDisplaySink);
 
     if (ctx.g_buff != NULL) {
         for (unsigned i = 0; i < V4L2_BUFFERS_NUM; i++) {

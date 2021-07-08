@@ -56,7 +56,11 @@ int main(int argc, char* argv[])
     ret = pipeline->Run();
 
     GPMessage msg;
-    while (pipeline->GetMessage(&msg)) {
+    for (;;) {
+        if (!pipeline->GetMessage(&msg)) {
+            continue;
+        }
+
         if (msg.type == GPMessageType::ERROR) {
             break;
         }

@@ -123,14 +123,11 @@ private:
     int Proc() override;
     bool HasProc() override { return true; };
 
-    static int decodeProc(GPNvVideoDecoder* decoder);
-
 private:
     std::shared_ptr<VideoDecodeContext_T> ctx_;
     gp_circular_buffer<uint8_t> buffer_;
     std::mutex buffer_mutex_;
     std::condition_variable thread_condition_;
-    std::thread decode_thread_;
 };
 
 };  // namespace GPlayer

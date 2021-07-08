@@ -83,9 +83,12 @@ bool GPPipeline::GetMessage(GPMessage* msg)
 
     std::unique_lock<std::mutex> guard(mutex_);
     cv_.wait_for(guard, 100ms, [&] { return !messages_.empty(); });
-    *msg = messages_.front();
-    messages_.pop_back();
-    return true;
+    if (!messages_.empty()) {
+        *msg = messages_.front();
+        messages_.pop_back();
+        return true;
+    }
+    return false;
 }
 
 }  // namespace GPlayer

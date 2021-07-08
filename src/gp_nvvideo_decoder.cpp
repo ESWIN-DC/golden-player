@@ -59,14 +59,9 @@ GPNvVideoDecoder::GPNvVideoDecoder(
 {
     ctx_ = context;
     SetType(BeaderType::NvVideoDecoder);
-
-    // decode_thread_ = std::thread(decodeProc, this);
 }
 
-GPNvVideoDecoder::~GPNvVideoDecoder()
-{
-    decode_thread_.join();
-}
+GPNvVideoDecoder::~GPNvVideoDecoder() {}
 
 std::string GPNvVideoDecoder::GetInfo() const
 {
@@ -1832,11 +1827,6 @@ cleanup:
     }
 
     return -error;
-}
-
-int GPNvVideoDecoder::decodeProc(GPNvVideoDecoder* decoder)
-{
-    return decoder->Proc();
 }
 
 }  // namespace GPlayer

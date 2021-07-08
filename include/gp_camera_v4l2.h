@@ -46,17 +46,11 @@ typedef struct {
     bool capture_dmabuf;
 
     // // EGL renderer
-    // NvEglRenderer* renderer;
     int render_dmabuf_fd;
     int fps;
 
     // CUDA processing
     bool enable_cuda;
-    // EGLDisplay egl_display;
-    // EGLImageKHR egl_image;
-
-    // // MJPEG decoding
-    // NvJPEGDecoder* jpegdec;
 
     // Verbose option
     bool enable_verbose;
@@ -92,7 +86,6 @@ public:
     std::string GetInfo() const override;
     bool HasProc() override { return true; };
     int Proc() override;
-
     void Process(GPData* data);
     void print_usage(void);
     bool parse_cmdline(v4l2_context_t* ctx, int argc, char** argv);
@@ -110,8 +103,6 @@ public:
     static void signal_handle(int signum);
     bool start_capture(v4l2_context_t* ctx);
     bool stop_stream(v4l2_context_t* ctx);
-    // bool ReadFrame(NvBuffer& buffer);
-
     bool SaveConfiguration(const std::string& configuration);
     bool LoadConfiguration();
 

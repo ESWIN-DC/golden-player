@@ -170,7 +170,6 @@ private:
     shared_ptr<VideoEncodeContext_T> ctx_;
     std::vector<GPData*> frames_;
     std::mutex frames_mutex_;
-    std::thread encode_thread_;
 };  // class GPNvVideoEncoder
 
 }  // namespace GPlayer

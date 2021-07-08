@@ -45,7 +45,7 @@ int GPDisplayEGL::Display(bool enable_cuda, int dmabuf_fd)
         // Create EGLImage from dmabuf fd
         EGLImageKHR egl_image = NvEGLImageFromFd(egl_display_, dmabuf_fd);
         if (egl_image == NULL) {
-            SPDLOG_ERROR("Failed to map dmabuf fd (0x%X) to EGLImage",
+            SPDLOG_ERROR("Failed to map dmabuf fd (0x{:X}) to EGLImage",
                          dmabuf_fd);
             return -1;
         }

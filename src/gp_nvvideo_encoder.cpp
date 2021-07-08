@@ -44,14 +44,9 @@ GPNvVideoEncoder::GPNvVideoEncoder(
 {
     SetType(BeaderType::NvVideoEncoder);
     ctx_ = context;
-
-    // encode_thread_ = std::thread(encodeProc, this);
 }
 
-GPNvVideoEncoder::~GPNvVideoEncoder()
-{
-    encode_thread_.join();
-}
+GPNvVideoEncoder::~GPNvVideoEncoder() {}
 
 std::string GPNvVideoEncoder::GetInfo() const
 {
@@ -1679,11 +1674,6 @@ int GPNvVideoEncoder::ReadFrame(NvBuffer& buffer)
         plane.bytesused = plane.fmt.stride * plane.fmt.height;
     }
     return 0;
-}
-
-int GPNvVideoEncoder::encodeProc(GPNvVideoEncoder* encoder)
-{
-    return encoder->Proc();
 }
 
 bool GPNvVideoEncoder::SaveConfiguration(const std::string& configuration)

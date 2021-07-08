@@ -34,6 +34,11 @@ void IBeader::Link(std::shared_ptr<IBeader> beader)
             GetInfo(), beader->GetInfo());
     }
 
+    if (beader->GetBeader(type_).get() == this) {
+        SPDLOG_ERROR("BUGBUG: Cannot link beads to each other.");
+        return;
+    }
+
     beaders_.push_back(beader);
     SPDLOG_TRACE("{} linked the beader type={} info={} ...", GetInfo(),
                  beader->GetType(), beader->GetInfo());

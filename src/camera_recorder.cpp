@@ -34,8 +34,8 @@ static bool VERBOSE_ENABLE = false;
 static bool DO_CPU_PROCESS = false;
 
 // Debug print macros.
-#define PRODUCER_PRINT(...) printf("PRODUCER: " __VA_ARGS__)
-#define CONSUMER_PRINT(...) printf("CONSUMER: " __VA_ARGS__)
+#define PRODUCER_PRINT(str) SPDLOG_TRACE("PRODUCER: {}", str)
+#define CONSUMER_PRINT(str) SPDLOG_TRACE("CONSUMER: {}", str)
 
 static EGLDisplay eglDisplay = EGL_NO_DISPLAY;
 
@@ -139,7 +139,7 @@ bool ConsumerThread::threadExecute()
         assert(dmabuf->getFd() == v4l2_buf.m.planes[0].m.fd);
 
         if (VERBOSE_ENABLE)
-            CONSUMER_PRINT("Released frame. %d\n", dmabuf->getFd());
+            SPDLOG_TRACE("CONSUMER: Released frame. {:d}\n", dmabuf->getFd());
 
         // Acquire a Buffer from a completed capture request.
         Argus::Status status = STATUS_OK;
@@ -154,7 +154,7 @@ bool ConsumerThread::threadExecute()
         int dmabuf_fd = dmabuf->getFd();
 
         if (VERBOSE_ENABLE)
-            CONSUMER_PRINT("Acquired Frame. %d\n", dmabuf_fd);
+            SPDLOG_TRACE("CONSUMER: Acquired Frame. {:d}\n", dmabuf_fd);
 
         if (DO_CPU_PROCESS) {
             NvBufferParams par;
@@ -358,7 +358,7 @@ bool CameraRecorder::Execute()
         GP_ORIGINATE_ERROR("No cameras available");
 
     if (CAMERA_INDEX >= cameraDevices.size()) {
-        PRODUCER_PRINT("CAMERA_INDEX out of range. Fall back to 0\n");
+        SPDLOG_TRACE("PRODUCER: CAMERA_INDEX out of range. Fall back to 0\n");
         CAMERA_INDEX = 0;
     }
 
