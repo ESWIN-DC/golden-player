@@ -9,10 +9,12 @@
 #include <string.h>
 #include <unistd.h>
 #include <algorithm>
+#include <condition_variable>
 #include <fstream>
 #include <iostream>
 #include <memory>
 #include <streambuf>
+#include <thread>
 
 #include "gp_log.h"
 
@@ -22,6 +24,19 @@
 #include "gplayer.h"
 
 namespace GPlayer {
+
+#define TEST_ERROR(cond, str, label) \
+    if (cond) {                      \
+        SPDLOG_ERROR(str);           \
+        error = 1;                   \
+        goto label;                  \
+    }
+
+#define TEST_PARSE_ERROR(cond, label)                                   \
+    if (cond) {                                                         \
+        SPDLOG_ERROR("Error parsing runtime parameter changes string"); \
+        goto label;                                                     \
+    }
 
 #define MICROSECOND_UNIT 1000000
 #define CHUNK_SIZE 4000000
@@ -83,7 +98,7 @@ void GPNvVideoDecoder::Process(GPData* data)
 
 int GPNvVideoDecoder::read_decoder_input_nalu(NvBuffer* buffer)
 {
-    std::lock_guard<std::mutex> guard(buffer_mutex_);
+    std::lock_guard<std::mutex> lk(buffer_mutex_);
     // Length is the size of the buffer in bytes
     char* buffer_ptr = (char*)buffer->planes[0].data;
     int h265_nal_unit_type;
@@ -92,8 +107,9 @@ int GPNvVideoDecoder::read_decoder_input_nalu(NvBuffer* buffer)
     bool nalu_found = false;
 
     if (buffer_.size() == 0) {
-        SPDLOG_WARN("No buffers in the {}", GetName());
-        return buffer->planes[0].bytesused = 0;
+        SPDLOG_TRACE("No buffers in the {}", GetName());
+        buffer->planes[0].bytesused = 0;
+        return 0;
     }
 
     // Find the first NAL unit in the buffer
@@ -151,7 +167,7 @@ int GPNvVideoDecoder::read_decoder_input_nalu(NvBuffer* buffer)
             // streamsize seekto =
             //     stream_initial_pos + (stream_ptr - parse_buffer);
             // stream->seekg(seekto, stream->beg);
-            return 0;
+            return buffer->planes[0].bytesused;
         }
         *buffer_ptr = stream_buffer[0];
         buffer_ptr++;
@@ -167,12 +183,12 @@ int GPNvVideoDecoder::read_decoder_input_nalu(NvBuffer* buffer)
 
 int GPNvVideoDecoder::read_decoder_input_chunk(NvBuffer* buffer)
 {
-    std::lock_guard<std::mutex> guard(buffer_mutex_);
+    std::lock_guard<std::mutex> lk(buffer_mutex_);
     // Length is the size of the buffer in bytes
     streamsize bytes_to_read = MIN(CHUNK_SIZE, buffer->planes[0].length);
 
     if (buffer_.size() == 0) {
-        SPDLOG_WARN("No buffers in the {}", GetInfo());
+        SPDLOG_WARN("No data in the buffer of {}", GetInfo());
         return 0;
     }
 
@@ -182,11 +198,12 @@ int GPNvVideoDecoder::read_decoder_input_chunk(NvBuffer* buffer)
     // many bytes in the buffer are valid
     buffer->planes[0].bytesused =
         buffer_.get(buffer->planes[0].data, bytes_to_read);
-    return 0;
+    return buffer->planes[0].bytesused;
 }
 
 int GPNvVideoDecoder::read_vpx_decoder_input_chunk(NvBuffer* buffer)
 {
+    std::lock_guard<std::mutex> lk(buffer_mutex_);
     // ifstream* stream = ctx_->in_file[0];
     size_t bytes_read = 0;
     size_t Framesize;
@@ -221,7 +238,7 @@ int GPNvVideoDecoder::read_vpx_decoder_input_chunk(NvBuffer* buffer)
         SPDLOG_ERROR("Couldn't read Framesize");
         return -1;
     }
-    return 0;
+    return bytes_read;
 }
 
 void GPNvVideoDecoder::Abort()
@@ -471,8 +488,8 @@ void GPNvVideoDecoder::query_and_set_capture()
     TEST_ERROR(ret < 0, "Error: Could not get crop from decoder capture plane",
                error);
 
-    cout << "Video Resolution: " << crop.c.width << "x" << crop.c.height
-         << endl;
+    SPDLOG_INFO("Video Resolution: {} x {} ", crop.c.width, crop.c.height);
+
     ctx_->display_height = crop.c.height;
     ctx_->display_width = crop.c.width;
 #ifdef USE_NVBUF_TRANSFORM_API
@@ -541,21 +558,9 @@ void GPNvVideoDecoder::query_and_set_capture()
                    "Check if X is running or run with --disable-rendering",
                    error);
 
-        // If height or width are set to zero, EglRenderer creates a fullscreen
-        // window
-        // ctx_->renderer = NvEglRenderer::createEglRenderer(
-        //     "renderer0", window_width, window_height, ctx_->window_x,
-        //     ctx_->window_y);
-        // TEST_ERROR(!ctx_->renderer,
-        //            "Error in setting up renderer. "
-        //            "Check if X is running or run with --disable-rendering",
-        //            error);
         if (ctx_->stats) {
-            // ctx_->renderer->enableProfiling();
             display->enableProfiling();
         }
-
-        // ctx_->renderer->setFPS(ctx_->fps);
     }
 
     // deinitPlane unmaps the buffers and calls REQBUFS with count 0
@@ -597,52 +602,51 @@ void GPNvVideoDecoder::query_and_set_capture()
             case V4L2_COLORSPACE_SMPTE170M:
                 if (format.fmt.pix_mp.quantization ==
                     V4L2_QUANTIZATION_DEFAULT) {
-                    cout << "Decoder colorspace ITU-R BT.601 with standard "
-                            "range luma (16-235)"
-                         << endl;
+                    SPDLOG_TRACE(
+                        "Decoder colorspace ITU-R BT.601 with standard "
+                        "range luma (16-235)");
                     cParams.colorFormat = NvBufferColorFormat_NV12;
                 }
                 else {
-                    cout << "Decoder colorspace ITU-R BT.601 with extended "
-                            "range luma (0-255)"
-                         << endl;
+                    SPDLOG_TRACE(
+                        "Decoder colorspace ITU-R BT.601 with extended "
+                        "range luma (0-255)");
                     cParams.colorFormat = NvBufferColorFormat_NV12_ER;
                 }
                 break;
             case V4L2_COLORSPACE_REC709:
                 if (format.fmt.pix_mp.quantization ==
                     V4L2_QUANTIZATION_DEFAULT) {
-                    cout << "Decoder colorspace ITU-R BT.709 with standard "
-                            "range luma (16-235)"
-                         << endl;
+                    SPDLOG_TRACE(
+                        "Decoder colorspace ITU-R BT.709 with standard "
+                        "range luma (16-235)");
                     cParams.colorFormat = NvBufferColorFormat_NV12_709;
                 }
                 else {
-                    cout << "Decoder colorspace ITU-R BT.709 with extended "
-                            "range luma (0-255)"
-                         << endl;
+                    SPDLOG_TRACE(
+                        "Decoder colorspace ITU-R BT.709 with extended "
+                        "range luma (0-255)");
                     cParams.colorFormat = NvBufferColorFormat_NV12_709_ER;
                 }
                 break;
             case V4L2_COLORSPACE_BT2020: {
-                cout << "Decoder colorspace ITU-R BT.2020" << endl;
+                SPDLOG_TRACE("Decoder colorspace ITU-R BT.2020");
                 cParams.colorFormat = NvBufferColorFormat_NV12_2020;
             } break;
             default:
-                cout
-                    << "supported colorspace details not available, use default"
-                    << endl;
+                SPDLOG_TRACE(
+                    "supported colorspace details not available, use default");
                 if (format.fmt.pix_mp.quantization ==
                     V4L2_QUANTIZATION_DEFAULT) {
-                    cout << "Decoder colorspace ITU-R BT.601 with standard "
-                            "range luma (16-235)"
-                         << endl;
+                    SPDLOG_TRACE(
+                        "Decoder colorspace ITU-R BT.601 with standard "
+                        "range luma (16-235)");
                     cParams.colorFormat = NvBufferColorFormat_NV12;
                 }
                 else {
-                    cout << "Decoder colorspace ITU-R BT.601 with extended "
-                            "range luma (0-255)"
-                         << endl;
+                    SPDLOG_TRACE(
+                        "Decoder colorspace ITU-R BT.601 with extended "
+                        "range luma (0-255)");
                     cParams.colorFormat = NvBufferColorFormat_NV12_ER;
                 }
                 break;
@@ -779,7 +783,7 @@ void* GPNvVideoDecoder::decoder_pollthread_fcn(void* arg)
         sem_wait(&ctx->pollthread_sema);
 
         if (ctx->got_eos) {
-            cout << "Decoder got eos, exiting poll thread \n";
+            SPDLOG_ERROR("Decoder got eos, exiting poll thread \n");
             return NULL;
         }
 
@@ -1099,7 +1103,7 @@ bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos,
         ret = ctx_->dec->dqEvent(ev, 0);
         if (ret == 0) {
             if (ev.type == V4L2_EVENT_RESOLUTION_CHANGE) {
-                cout << "Got V4L2_EVENT_RESOLUTION_CHANGE EVENT \n";
+                SPDLOG_TRACE("Got V4L2_EVENT_RESOLUTION_CHANGE EVENT \n");
                 query_and_set_capture();
             }
         }
@@ -1112,7 +1116,7 @@ bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos,
             // Now dequeue from the output plane and enqueue back the buffers
             // after reading
             if ((eos) && (ctx_->dec->output_plane.getNumQueuedBuffers() == 0)) {
-                cout << "Done processing all the buffers returning \n";
+                SPDLOG_ERROR("Done processing all the buffers returning \n");
                 return true;
             }
 
@@ -1406,23 +1410,39 @@ bool GPNvVideoDecoder::decoder_proc_blocking(bool eos,
             }
         }
 
-        if ((ctx_->decoder_pixfmt == V4L2_PIX_FMT_H264) ||
-            (ctx_->decoder_pixfmt == V4L2_PIX_FMT_H265) ||
-            (ctx_->decoder_pixfmt == V4L2_PIX_FMT_MPEG2) ||
-            (ctx_->decoder_pixfmt == V4L2_PIX_FMT_MPEG4)) {
-            if (ctx_->input_nalu) {
-                read_decoder_input_nalu(buffer);
+        int size = 0;
+        do {
+            {
+                std::unique_lock<std::mutex> lk(buffer_mutex_);
+                thread_condition_.wait(lk, [&] { return buffer_.size() > 0; });
+            }
+
+            if ((ctx_->decoder_pixfmt == V4L2_PIX_FMT_H264) ||
+                (ctx_->decoder_pixfmt == V4L2_PIX_FMT_H265) ||
+                (ctx_->decoder_pixfmt == V4L2_PIX_FMT_MPEG2) ||
+                (ctx_->decoder_pixfmt == V4L2_PIX_FMT_MPEG4)) {
+                if (ctx_->input_nalu) {
+                    size = read_decoder_input_nalu(buffer);
+                }
+                else {
+                    size = read_decoder_input_chunk(buffer);
+                }
+            }
+            else if (ctx_->decoder_pixfmt == V4L2_PIX_FMT_VP9 ||
+                     ctx_->decoder_pixfmt == V4L2_PIX_FMT_VP8) {
+                size = read_vpx_decoder_input_chunk(buffer);
             }
             else {
-                read_decoder_input_chunk(buffer);
+                SPDLOG_CRITICAL("The warhog is coming.");
             }
-        }
-        if (ctx_->decoder_pixfmt == V4L2_PIX_FMT_VP9 ||
-            ctx_->decoder_pixfmt == V4L2_PIX_FMT_VP8) {
-            ret = read_vpx_decoder_input_chunk(buffer);
-            if (ret != 0)
+
+            if (size < 0) {
+                ret = size;
                 SPDLOG_ERROR("Couldn't read chunk");
-        }
+                break;
+            }
+        } while (size == 0);
+
         v4l2_buf.m.planes[0].bytesused = buffer->planes[0].bytesused;
 
         if (ctx_->input_nalu && ctx_->copy_timestamp && ctx_->flag_copyts) {
@@ -1455,7 +1475,7 @@ bool GPNvVideoDecoder::decoder_proc_blocking(bool eos,
         }
         if (v4l2_buf.m.planes[0].bytesused == 0) {
             eos = true;
-            SPDLOG_INFO("Input file read complete");
+            SPDLOG_TRACE("Input file read complete");
             break;
         }
     }
@@ -1470,7 +1490,6 @@ int GPNvVideoDecoder::Proc()
     uint32_t i;
     bool eos = false;
     int current_loop = 0;
-    // char* nalu_parse_buffer = NULL;
     NvApplicationProfiler& profiler =
         NvApplicationProfiler::getProfilerInstance();
 
@@ -1487,28 +1506,14 @@ int GPNvVideoDecoder::Proc()
     // }
 
     if (ctx_->blocking_mode) {
-        cout << "Creating decoder in blocking mode \n";
+        SPDLOG_INFO("Creating decoder in blocking mode");
         ctx_->dec = NvVideoDecoder::createVideoDecoder("dec0");
     }
     else {
-        cout << "Creating decoder in non-blocking mode \n";
+        SPDLOG_INFO("Creating decoder in non-blocking mode");
         ctx_->dec = NvVideoDecoder::createVideoDecoder("dec0", O_NONBLOCK);
     }
     TEST_ERROR(!ctx_->dec, "Could not create decoder", cleanup);
-
-    // ctx_->in_file =
-    //     (std::ifstream**)malloc(sizeof(std::ifstream*) * ctx_->file_count);
-    // for (uint32_t i = 0; i < ctx_->file_count; i++) {
-    //     ctx_->in_file[i] = new ifstream(ctx_->in_file_path[i]);
-    //     TEST_ERROR(!ctx_->in_file[i]->is_open(), "Error opening input file",
-    //                cleanup);
-    // }
-
-    // if (ctx_->out_file_path) {
-    //     ctx_->out_file = new ofstream(ctx_->out_file_path);
-    //     TEST_ERROR(!ctx_->out_file->is_open(), "Error opening output file",
-    //                cleanup);
-    // }
 
     if (ctx_->stats) {
         profiler.start(NvApplicationProfiler::DefaultSamplingInterval);
@@ -1604,7 +1609,7 @@ int GPNvVideoDecoder::Proc()
         sem_init(&ctx_->decoderthread_sema, 0, 0);
         pthread_create(&ctx_->dec_pollthread, NULL, decoder_pollthread_fcn,
                        this);
-        cout << "Created the PollThread and Decoder Thread \n";
+        SPDLOG_INFO("Created the PollThread and Decoder Thread \n");
         pthread_setname_np(ctx_->dec_pollthread, "DecPollThread");
     }
 
@@ -1624,35 +1629,45 @@ int GPNvVideoDecoder::Proc()
         struct v4l2_plane planes[MAX_PLANES];
         NvBuffer* buffer;
 
-        {
-            std::unique_lock<std::mutex> lk(buffer_mutex_);
-            thread_condition_.wait(lk, [&] { return buffer_.size() > 0; });
-        }
-
         memset(&v4l2_buf, 0, sizeof(v4l2_buf));
         memset(planes, 0, sizeof(planes));
 
         buffer = ctx_->dec->output_plane.getNthBuffer(i);
-        if ((ctx_->decoder_pixfmt == V4L2_PIX_FMT_H264) ||
-            (ctx_->decoder_pixfmt == V4L2_PIX_FMT_H265) ||
-            (ctx_->decoder_pixfmt == V4L2_PIX_FMT_MPEG2) ||
-            (ctx_->decoder_pixfmt == V4L2_PIX_FMT_MPEG4)) {
-            if (ctx_->input_nalu) {
-                // read_decoder_input_nalu(ctx_->in_file[current_file], buffer,
-                //                         nalu_parse_buffer, CHUNK_SIZE);
 
-                read_decoder_input_nalu(buffer);
+        int size = 0;
+        do {
+            {
+                std::unique_lock<std::mutex> lk(buffer_mutex_);
+                thread_condition_.wait(lk, [&] { return buffer_.size() > 0; });
+            }
+
+            if ((ctx_->decoder_pixfmt == V4L2_PIX_FMT_H264) ||
+                (ctx_->decoder_pixfmt == V4L2_PIX_FMT_H265) ||
+                (ctx_->decoder_pixfmt == V4L2_PIX_FMT_MPEG2) ||
+                (ctx_->decoder_pixfmt == V4L2_PIX_FMT_MPEG4)) {
+                if (ctx_->input_nalu) {
+                    size = read_decoder_input_nalu(buffer);
+                }
+                else {
+                    size = read_decoder_input_chunk(buffer);
+                }
+            }
+            else if (ctx_->decoder_pixfmt == V4L2_PIX_FMT_VP9 ||
+                     ctx_->decoder_pixfmt == V4L2_PIX_FMT_VP8) {
+                size = read_vpx_decoder_input_chunk(buffer);
+                if (size != 0)
+                    SPDLOG_ERROR("Couldn't read chunk");
             }
             else {
-                read_decoder_input_chunk(buffer);
+                SPDLOG_CRITICAL("The warhog is coming.");
             }
-        }
-        else if (ctx_->decoder_pixfmt == V4L2_PIX_FMT_VP9 ||
-                 ctx_->decoder_pixfmt == V4L2_PIX_FMT_VP8) {
-            ret = read_vpx_decoder_input_chunk(buffer);
-            if (ret != 0)
+
+            if (size < 0) {
+                ret = size;
                 SPDLOG_ERROR("Couldn't read chunk");
-        }
+                break;
+            }
+        } while (size == 0);
 
         v4l2_buf.index = i;
         v4l2_buf.m.planes = planes;
@@ -1695,6 +1710,7 @@ int GPNvVideoDecoder::Proc()
         }
         i++;
     }
+
     if (ctx_->blocking_mode)
         eos = decoder_proc_blocking(eos, current_file, current_loop);
     else
@@ -1803,9 +1819,6 @@ cleanup:
 #endif
     // Similarly, EglRenderer destructor does all the cleanup
     // delete ctx_->renderer;
-    // for (uint32_t i = 0; i < ctx_->file_count; i++)
-    //     delete ctx_->in_file[i];
-    // delete ctx_->out_file;
 #ifndef USE_NVBUF_TRANSFORM_API
     delete ctx_->conv_output_plane_buf_queue;
 #else
@@ -1816,11 +1829,6 @@ cleanup:
 #endif
     // delete[] nalu_parse_buffer;
 
-    // free(ctx_->in_file);
-    // for (uint32_t i = 0; i < ctx_->file_count; i++)
-    //     free(ctx_->in_file_path[i]);
-    // free(ctx_->in_file_path);
-    // free(ctx_->out_file_path);
     if (!ctx_->blocking_mode) {
         sem_destroy(&ctx_->pollthread_sema);
         sem_destroy(&ctx_->decoderthread_sema);

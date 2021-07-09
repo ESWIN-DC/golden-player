@@ -25,13 +25,6 @@
 #include "gp_circular_buffer.h"
 #include "gplayer.h"
 
-#define TEST_ERROR(cond, str, label) \
-    if (cond) {                      \
-        cerr << str << endl;         \
-        error = 1;                   \
-        goto label;                  \
-    }
-
 #define MICROSECOND_UNIT 1000000
 #define CHUNK_SIZE 4000000
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))

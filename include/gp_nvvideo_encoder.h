@@ -25,19 +25,6 @@
 
 namespace GPlayer {
 
-#define TEST_ERROR(cond, str, label) \
-    if (cond) {                      \
-        cerr << str << endl;         \
-        error = 1;                   \
-        goto label;                  \
-    }
-
-#define TEST_PARSE_ERROR(cond, label)                                     \
-    if (cond) {                                                           \
-        cerr << "Error parsing runtime parameter changes string" << endl; \
-        goto label;                                                       \
-    }
-
 #define IS_DIGIT(c) (c >= '0' && c <= '9')
 #define MICROSECOND_UNIT 1000000
 

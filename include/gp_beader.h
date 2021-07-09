@@ -14,7 +14,6 @@ enum class BeaderType {
     Unknown = 0,
     CameraV4l2Src,
     FileSink,
-    IMAGE,
     EGLDisplaySink,
     NvVideoEncoder,
     NvVideoDecoder,
@@ -29,8 +28,9 @@ public:
     virtual void SetType(BeaderType type) final;
     virtual BeaderType GetType() const final;
     virtual std::string GetName() const final;
-    virtual void Link(std::shared_ptr<IBeader> beader) final;
-    virtual void Link(std::vector<std::shared_ptr<IBeader>>& beaders) final;
+    virtual void Link(const std::shared_ptr<IBeader>& beader) final;
+    virtual void Link(
+        const std::vector<std::shared_ptr<IBeader>>& beaders) final;
     virtual void Unlink(IBeader* module) final;
     virtual void Unlink(BeaderType type) final;
     virtual std::shared_ptr<IBeader> GetBeader(BeaderType type) final;

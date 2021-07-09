@@ -29,47 +29,38 @@ int main(int argc, char* argv[])
 
     shared_ptr<GPNvVideoDecoder> nvvideodecoder =
         std::make_shared<GPNvVideoDecoder>(dcontext);
-    shared_ptr<GPNvVideoEncoder> nvvideoencoder =
-        std::make_shared<GPNvVideoEncoder>(econtext);
-    shared_ptr<CameraRecorder> recorder = std::make_shared<CameraRecorder>();
-    shared_ptr<GPNvJpegDecoder> nvjpegdecoder =
-        std::make_shared<GPNvJpegDecoder>();
     shared_ptr<GPCameraV4l2> v4l2 = std::make_shared<GPCameraV4l2>();
     shared_ptr<GPDisplayEGL> egl = std::make_shared<GPDisplayEGL>();
     shared_ptr<GPFileSink> h264file =
         std::make_shared<GPFileSink>(std::string("try001.h264"));
-    shared_ptr<GPFileSink> orignfile =
-        std::make_shared<GPFileSink>(std::string("try001.orgin"));
 
-    nvvideodecoder->Link(h264file);
+    shared_ptr<GPPipeline> pipeline = std::make_shared<GPPipeline>();
+    std::vector<std::shared_ptr<GPlayer::IBeader> > elements{
+        v4l2, h264file, nvvideodecoder, egl};
+    pipeline->Add(elements);
+
+    v4l2->LoadConfiguration("camera-v4l2.json");
+
+    v4l2->Link(h264file);
+    v4l2->Link(nvvideodecoder);
     nvvideodecoder->Link(egl);
 
-    v4l2->Link(orignfile);
-    v4l2->Link(nvjpegdecoder);
-    v4l2->Link(nvvideodecoder);
+    ret = pipeline->Run();
 
-    // v4l2->Link(egl);
+    for (;;) {
+        GPMessage msg;
+        if (!pipeline->GetMessage(&msg)) {
+            continue;
+        }
 
-    // recorder->main(argc, argv);
-
-    // ret = v4l2->main(argc, argv);
-
-    GPPipeline* pipeline = new GPPipeline();
-    pipeline->Add(v4l2);
-    pipeline->Add(recorder);
-    pipeline->Add(nvvideoencoder);
-    pipeline->Add(nvvideodecoder);
-
-    // pipeline->Run();
-
-    if (ret) {
-        spdlog::info("App run failed\n");
-    }
-    else {
-        spdlog::info("App run was successful\n");
-    }
-
-    delete pipeline;
+        if (msg.type == GPMessageType::ERROR) {
+            break;
+        }
+        else if (msg.type == GPMessageType::STATE_CHANGED) {
+        }
+        else {
+        }
+    };
 
     return ret;
 }

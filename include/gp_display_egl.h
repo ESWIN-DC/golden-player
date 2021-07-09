@@ -31,16 +31,10 @@ public:
 private:
     // EGL renderer
     NvEglRenderer* renderer_;
-    // int render_dmabuf_fd;
-    // int fps;
 
     // CUDA processing
     // bool enable_cuda;
     EGLDisplay egl_display_;
-    // EGLImageKHR egl_image;
-
-    // MJPEG decoding
-    // NvJPEGDecoder* jpegdec_;
 
     std::vector<IBeader*> handlers_;
 };
