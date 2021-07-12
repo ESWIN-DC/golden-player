@@ -33,7 +33,6 @@ public:
     bool Add(const std::shared_ptr<IBeader>& element);
     bool Add(const std::vector<std::shared_ptr<IBeader>>& elementList);
     bool Insert(const std::shared_ptr<IBeader>& element);
-    bool Tee(const std::shared_ptr<IBeader>& element);
     bool Run();
     bool Reload();
     void Terminate();

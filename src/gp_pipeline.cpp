@@ -39,11 +39,6 @@ bool GPPipeline::Insert(const std::shared_ptr<IBeader>& element)
     return true;
 }
 
-bool GPPipeline::Tee(const std::shared_ptr<IBeader>& element)
-{
-    return true;
-}
-
 bool GPPipeline::Run()
 {
     std::for_each(elements_.begin(), elements_.end(),

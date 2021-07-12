@@ -268,16 +268,16 @@ int parse_csv_args(VideoDecodeContext_T* ctx, int argc, char* argv[])
             print_help();
             exit(EXIT_SUCCESS);
         }
-        else if (!strcmp(arg, "-loop")) {
-            ctx->bLoop = true;
-            argp++;
-            CHECK_OPTION_VALUE(argp);
-            ctx->loop_count = atoi(*argp);
-        }
-        else if (!strcmp(arg, "-queue")) {
-            ctx->bQueue = true;
-            break;
-        }
+        // else if (!strcmp(arg, "-loop")) {
+        //     ctx->bLoop = true;
+        //     argp++;
+        //     CHECK_OPTION_VALUE(argp);
+        //     ctx->loop_count = atoi(*argp);
+        // }
+        // else if (!strcmp(arg, "-queue")) {
+        //     ctx->bQueue = true;
+        //     break;
+        // }
         else if (!strcmp(arg, "-v4l2-memory-cap-plane")) {
             argp++;
             CHECK_OPTION_VALUE(argp);
@@ -297,7 +297,7 @@ int parse_csv_args(VideoDecodeContext_T* ctx, int argc, char* argv[])
         else if (!strcmp(arg, "--blocking-mode")) {
             argp++;
             CHECK_OPTION_VALUE(argp);
-            ctx->blocking_mode = atoi(*argp);
+            // ctx->blocking_mode = atoi(*argp);
         }
 #ifndef USE_NVBUF_TRANSFORM_API
         else if (!strcmp(arg, "--do-yuv-rescale")) {
@@ -310,31 +310,31 @@ int parse_csv_args(VideoDecodeContext_T* ctx, int argc, char* argv[])
         }
     }
 
-    if (ctx->bQueue) {
-        ctx->file_count = 0;
+    // if (ctx->bQueue) {
+    //     ctx->file_count = 0;
 
-        while ((arg = *(++argp))) {
-            ctx->file_count++;
-        }
-        int i = ctx->file_count + 1;
-        while (i--) {
-            --argp;
-        }
+    //     while ((arg = *(++argp))) {
+    //         ctx->file_count++;
+    //     }
+    //     int i = ctx->file_count + 1;
+    //     while (i--) {
+    //         --argp;
+    //     }
 
-        // ctx->in_file_path = (char**)malloc(sizeof(char*) * ctx->file_count);
-        i = 0;
-        // while ((arg = *(++argp))) {
-        //     ctx->in_file_path[i++] = strdup(*argp);
-        //     CSV_PARSE_CHECK_ERROR(!ctx->in_file_path,
-        //                           "Input file not specified");
-        // }
-    }
-    else {
-        // ctx->in_file_path = (char**)malloc(sizeof(char*) * 1);
-        // ctx->in_file_path[0] = strdup(*--argp);
-        // CSV_PARSE_CHECK_ERROR(!ctx->in_file_path, "Input file not
-        // specified");
-    }
+    //     // ctx->in_file_path = (char**)malloc(sizeof(char*) *
+    //     ctx->file_count); i = 0;
+    //     // while ((arg = *(++argp))) {
+    //     //     ctx->in_file_path[i++] = strdup(*argp);
+    //     //     CSV_PARSE_CHECK_ERROR(!ctx->in_file_path,
+    //     //                           "Input file not specified");
+    //     // }
+    // }
+    // else {
+    //     // ctx->in_file_path = (char**)malloc(sizeof(char*) * 1);
+    //     // ctx->in_file_path[0] = strdup(*--argp);
+    //     // CSV_PARSE_CHECK_ERROR(!ctx->in_file_path, "Input file not
+    //     // specified");
+    // }
     return 0;
 
 error:

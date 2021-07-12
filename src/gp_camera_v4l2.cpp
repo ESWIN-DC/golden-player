@@ -718,6 +718,8 @@ int GPCameraV4l2::Proc()
     v4l2_context_t& ctx = ctx_;
     int error = 0;
 
+    pthread_setname_np(pthread_self(), "GPCameraV4l2::Proc");
+
     CHECK_ERROR(init_components(&ctx), cleanup,
                 "Failed to initialize v4l2 components");
 

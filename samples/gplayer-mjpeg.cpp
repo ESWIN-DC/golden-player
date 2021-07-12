@@ -23,14 +23,14 @@ int main(int argc, char* argv[])
     spdlog::set_level(spdlog::level::trace);
 
     int ret = 0;
-    shared_ptr<GPNvJpegDecoder> nvjpegdecoder =
+    std::shared_ptr<GPNvJpegDecoder> nvjpegdecoder =
         std::make_shared<GPNvJpegDecoder>();
-    shared_ptr<GPCameraV4l2> v4l2 = std::make_shared<GPCameraV4l2>();
-    shared_ptr<GPDisplayEGL> egl = std::make_shared<GPDisplayEGL>();
-    shared_ptr<GPFileSink> mjpegfile =
+    std::shared_ptr<GPCameraV4l2> v4l2 = std::make_shared<GPCameraV4l2>();
+    std::shared_ptr<GPDisplayEGL> egl = std::make_shared<GPDisplayEGL>();
+    std::shared_ptr<GPFileSink> mjpegfile =
         std::make_shared<GPFileSink>(std::string("try001.mjpeg"));
 
-    shared_ptr<GPPipeline> pipeline = std::make_shared<GPPipeline>();
+    std::shared_ptr<GPPipeline> pipeline = std::make_shared<GPPipeline>();
     std::vector<std::shared_ptr<GPlayer::IBeader> > elements{
         v4l2, mjpegfile, nvjpegdecoder, egl};
     pipeline->Add(elements);
