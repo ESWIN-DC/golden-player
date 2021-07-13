@@ -24,11 +24,11 @@ public:
         full_ = head_ == tail_;
     }
 
-    size_t put(T* block, size_t length)
+    std::size_t put(T* block, size_t length)
     {
-        size_t to_put = std::min(max_size_ - size(), length);
-        size_t to_put1 = std::min(max_size_ - head_, to_put);
-        size_t to_put2 = to_put - to_put1;
+        std::size_t to_put = std::min(max_size_ - size(), length);
+        std::size_t to_put1 = std::min(max_size_ - head_, to_put);
+        std::size_t to_put2 = to_put - to_put1;
 
         std::memcpy(buf_.get() + head_, block, to_put1 * sizeof(T));
         if (to_put2 > 0) {
@@ -55,11 +55,11 @@ public:
         return val;
     }
 
-    size_t get(T* block, size_t length)
+    std::size_t get(T* block, std::size_t length)
     {
-        size_t to_get = std::min(size(), length);
-        size_t to_get1 = std::min(max_size_ - tail_, to_get);
-        size_t to_get2 = to_get - to_get1;
+        std::size_t to_get = std::min(size(), length);
+        std::size_t to_get1 = std::min(max_size_ - tail_, to_get);
+        std::size_t to_get2 = to_get - to_get1;
 
         if (empty()) {
             return 0;
@@ -87,9 +87,9 @@ public:
         tail_ = (tail_ + 1) % max_size_;
     }
 
-    size_t drop(size_t length)
+    std::size_t drop(std::size_t length)
     {
-        size_t to_drop = std::min(size(), length);
+        std::size_t to_drop = std::min(size(), length);
 
         if (empty()) {
             return 0;
@@ -101,7 +101,7 @@ public:
         return to_drop;
     }
 
-    size_t snap(T* block, size_t length)
+    std::size_t snap(T* block, std::size_t length)
     {
         size_t to_snap = std::min(size(), length);
         size_t to_snap1 = std::min(max_size_ - tail_, to_snap);
@@ -138,9 +138,9 @@ public:
         return full_;
     }
 
-    size_t capacity() const { return max_size_; }
+    std::size_t capacity() const { return max_size_; }
 
-    size_t size() const
+    std::size_t size() const
     {
         size_t size = max_size_;
 
@@ -158,9 +158,9 @@ public:
 
 private:
     std::unique_ptr<T[]> buf_;
-    size_t head_ = 0;
-    size_t tail_ = 0;
-    const size_t max_size_;
+    std::size_t head_ = 0;
+    std::size_t tail_ = 0;
+    const std::size_t max_size_;
     bool full_ = 0;
 };
 

@@ -23,10 +23,10 @@
 #include "context.h"
 #include "gp_beader.h"
 #include "gp_circular_buffer.h"
+#include "gp_semaphore.h"
 #include "gp_threadpool.h"
 #include "gplayer.h"
 
-#define USE_NVBUF_TRANSFORM_API
 #define MAX_BUFFERS 32
 
 namespace GPlayer {
@@ -48,7 +48,6 @@ typedef struct : public context_t {
     float fps;
 
     bool disable_dpb;
-
     bool input_nalu;
 
     bool copy_timestamp;
@@ -67,9 +66,9 @@ typedef struct : public context_t {
     enum v4l2_skip_frames_type skip_frames;
     enum v4l2_memory output_plane_mem_type;
     enum v4l2_memory capture_plane_mem_type;
-#ifndef USE_NVBUF_TRANSFORM_API
+    // #ifndef USE_NVBUF_TRANSFORM_API
     enum v4l2_yuv_rescale_method rescale_method;
-#endif
+    // #endif
 
     std::queue<NvBuffer*>* conv_output_plane_buf_queue;
     pthread_mutex_t queue_lock;
@@ -109,25 +108,26 @@ private:
     int read_vpx_decoder_input_chunk(NvBuffer* buffer);
     void Abort();
 
-#ifndef USE_NVBUF_TRANSFORM_API
-    bool conv0_output_dqbuf_thread_callback(struct v4l2_buffer* v4l2_buf,
-                                            NvBuffer* buffer,
-                                            NvBuffer* shared_buffer,
-                                            void* arg);
+    // #ifndef USE_NVBUF_TRANSFORM_API
+    static bool conv0_output_dqbuf_thread_callback(struct v4l2_buffer* v4l2_buf,
+                                                   NvBuffer* buffer,
+                                                   NvBuffer* shared_buffer,
+                                                   void* arg);
 
-    bool conv0_capture_dqbuf_thread_callback(struct v4l2_buffer* v4l2_buf,
-                                             NvBuffer* buffer,
-                                             NvBuffer* shared_buffer,
-                                             void* arg);
-#endif
+    static bool conv0_capture_dqbuf_thread_callback(
+        struct v4l2_buffer* v4l2_buf,
+        NvBuffer* buffer,
+        NvBuffer* shared_buffer,
+        void* arg);
+    // #endif
 
     int report_input_metadata(
         v4l2_ctrl_videodec_inputbuf_metadata* input_metadata);
     void report_metadata(v4l2_ctrl_videodec_outputbuf_metadata* metadata);
 
-#ifndef USE_NVBUF_TRANSFORM_API
+    // #ifndef USE_NVBUF_TRANSFORM_API
     int sendEOStoConverter();
-#endif
+    // #endif
 
     void query_and_set_capture();
     void* decoder_pollthread_fcn(void);
@@ -139,12 +139,11 @@ private:
     std::shared_ptr<VideoDecodeContext_T> ctx_;
     std::thread decoder_poll_thread_;
     gp_circular_buffer<uint8_t> buffer_;
-    bool decoder_is_availiable_;
-    std::mutex buffer_mutex_;
-    std::mutex decoder_poll_mutex_;
-    std::mutex process_mutex_;
-    std::condition_variable decoder_poll_condition_;
-    std::condition_variable process_condition_;
+    std::mutex buffer_lock_;
+    GPSemaphore buffer_sema_;
+    GPSemaphore pollthread_sema_;
+    GPSemaphore decoderthread_sema_;
+    const bool use_nvbuf_transform_api_ = true;
 };
 
 };  // namespace GPlayer

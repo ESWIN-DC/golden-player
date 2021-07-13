@@ -310,31 +310,6 @@ int parse_csv_args(VideoDecodeContext_T* ctx, int argc, char* argv[])
         }
     }
 
-    // if (ctx->bQueue) {
-    //     ctx->file_count = 0;
-
-    //     while ((arg = *(++argp))) {
-    //         ctx->file_count++;
-    //     }
-    //     int i = ctx->file_count + 1;
-    //     while (i--) {
-    //         --argp;
-    //     }
-
-    //     // ctx->in_file_path = (char**)malloc(sizeof(char*) *
-    //     ctx->file_count); i = 0;
-    //     // while ((arg = *(++argp))) {
-    //     //     ctx->in_file_path[i++] = strdup(*argp);
-    //     //     CSV_PARSE_CHECK_ERROR(!ctx->in_file_path,
-    //     //                           "Input file not specified");
-    //     // }
-    // }
-    // else {
-    //     // ctx->in_file_path = (char**)malloc(sizeof(char*) * 1);
-    //     // ctx->in_file_path[0] = strdup(*--argp);
-    //     // CSV_PARSE_CHECK_ERROR(!ctx->in_file_path, "Input file not
-    //     // specified");
-    // }
     return 0;
 
 error:
