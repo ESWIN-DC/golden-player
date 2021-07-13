@@ -1,6 +1,7 @@
 
 #include <linux/videodev2.h>
 #include <nvbuf_utils.h>
+#include <spdlog/fmt/bundled/format.h>
 #include <algorithm>
 #include <condition_variable>
 #include <iostream>
@@ -796,6 +797,224 @@ void* GPNvVideoDecoder::decoder_pollthread_fcn()
     return NULL;
 }
 
+void* GPNvVideoDecoder::dec_capture_loop_fcn()
+{
+    VideoDecodeContext_T* ctx = ctx_.get();
+    NvVideoDecoder* dec = ctx->dec;
+    struct v4l2_event ev;
+    int ret;
+    GPDisplayEGL* display = dynamic_cast<GPDisplayEGL*>(
+        GetBeader(BeaderType::EGLDisplaySink).get());
+
+    SPDLOG_TRACE("Starting decoder capture loop thread");
+    // Need to wait for the first Resolution change event, so that
+    // the decoder knows the stream resolution and can allocate appropriate
+    // buffers when we call REQBUFS
+    do {
+        ret = dec->dqEvent(ev, 50000);
+        if (ret < 0) {
+            if (errno == EAGAIN) {
+                SPDLOG_ERROR(
+                    "Timed out waiting for first "
+                    "V4L2_EVENT_RESOLUTION_CHANGE");
+            }
+            else {
+                SPDLOG_ERROR("Error in dequeueing decoder event");
+            }
+            Abort();
+            break;
+        }
+    } while ((ev.type != V4L2_EVENT_RESOLUTION_CHANGE) && !ctx->got_error);
+
+    // query_and_set_capture acts on the resolution change event
+    if (!ctx->got_error)
+        query_and_set_capture();
+
+    // Exit on error or EOS which is signalled in main()
+    while (!(ctx->got_error || dec->isInError() || ctx->got_eos)) {
+        NvBuffer* dec_buffer;
+
+        // Check for Resolution change again
+        ret = dec->dqEvent(ev, false);
+        if (ret == 0) {
+            switch (ev.type) {
+                case V4L2_EVENT_RESOLUTION_CHANGE:
+                    query_and_set_capture();
+                    continue;
+            }
+        }
+
+        while (1) {
+            struct v4l2_buffer v4l2_buf;
+            struct v4l2_plane planes[MAX_PLANES];
+
+            memset(&v4l2_buf, 0, sizeof(v4l2_buf));
+            memset(planes, 0, sizeof(planes));
+            v4l2_buf.m.planes = planes;
+
+            // Dequeue a filled buffer
+            if (dec->capture_plane.dqBuffer(v4l2_buf, &dec_buffer, NULL, 0)) {
+                if (errno == EAGAIN) {
+                    usleep(1000);
+                }
+                else {
+                    Abort();
+                    SPDLOG_ERROR(
+                        "Error while calling dequeue at capture plane");
+                }
+                break;
+            }
+
+            if (ctx->enable_metadata) {
+                v4l2_ctrl_videodec_outputbuf_metadata dec_metadata;
+
+                ret = dec->getMetadata(v4l2_buf.index, dec_metadata);
+                if (ret == 0) {
+                    report_metadata(&dec_metadata);
+                }
+            }
+
+            if (ctx->copy_timestamp && ctx->input_nalu && ctx->stats) {
+                SPDLOG_TRACE("[{}] dec capture plane dqB timestamp [{}s {}us]",
+                             v4l2_buf.index, v4l2_buf.timestamp.tv_sec,
+                             v4l2_buf.timestamp.tv_usec);
+            }
+
+            if (display && ctx->stats) {
+                // EglRenderer requires the fd of the 0th plane to render the
+                // buffer
+                if (ctx->capture_plane_mem_type == V4L2_MEMORY_DMABUF)
+                    dec_buffer->planes[0].fd = ctx->dmabuff_fd[v4l2_buf.index];
+                // ctx->renderer->render(dec_buffer->planes[0].fd);
+                // display->Display(dec_buffer->planes[0].fd);
+            }
+
+            // If we need to write to file or display the buffer,
+            // give the buffer to video converter output plane
+            // instead of returning the buffer back to decoder capture plane
+            if (display && !ctx->stats) {
+                if (!use_nvbuf_transform_api_) {
+                    NvBuffer* conv_buffer;
+                    struct v4l2_buffer conv_output_buffer;
+                    struct v4l2_plane conv_planes[MAX_PLANES];
+
+                    memset(&conv_output_buffer, 0, sizeof(conv_output_buffer));
+                    memset(conv_planes, 0, sizeof(conv_planes));
+                    conv_output_buffer.m.planes = conv_planes;
+
+                    // Get an empty conv output plane buffer from
+                    // conv_output_plane_buf_queue
+                    pthread_mutex_lock(&ctx->queue_lock);
+                    while (ctx->conv_output_plane_buf_queue->empty()) {
+                        pthread_cond_wait(&ctx->queue_cond, &ctx->queue_lock);
+                    }
+                    conv_buffer = ctx->conv_output_plane_buf_queue->front();
+                    ctx->conv_output_plane_buf_queue->pop();
+                    pthread_mutex_unlock(&ctx->queue_lock);
+
+                    conv_output_buffer.index = conv_buffer->index;
+                    if (ctx->capture_plane_mem_type == V4L2_MEMORY_DMABUF)
+                        dec_buffer->planes[0].fd =
+                            ctx->dmabuff_fd[v4l2_buf.index];
+
+                    if (ctx->conv->output_plane.qBuffer(conv_output_buffer,
+                                                        dec_buffer) < 0) {
+                        Abort();
+                        SPDLOG_TRACE(
+                            "Error while queueing buffer at converter output "
+                            "plane");
+                        break;
+                    }
+                }
+                else {
+                    /* Clip & Stitch can be done by adjusting rectangle */
+                    NvBufferRect src_rect, dest_rect;
+                    src_rect.top = 0;
+                    src_rect.left = 0;
+                    src_rect.width = ctx->display_width;
+                    src_rect.height = ctx->display_height;
+                    dest_rect.top = 0;
+                    dest_rect.left = 0;
+                    dest_rect.width = ctx->display_width;
+                    dest_rect.height = ctx->display_height;
+
+                    NvBufferTransformParams transform_params;
+                    memset(&transform_params, 0, sizeof(transform_params));
+                    /* Indicates which of the transform parameters are valid */
+                    transform_params.transform_flag = NVBUFFER_TRANSFORM_FILTER;
+                    transform_params.transform_flip = NvBufferTransform_None;
+                    transform_params.transform_filter =
+                        NvBufferTransform_Filter_Smart;
+                    transform_params.src_rect = src_rect;
+                    transform_params.dst_rect = dest_rect;
+
+                    if (ctx->capture_plane_mem_type == V4L2_MEMORY_DMABUF)
+                        dec_buffer->planes[0].fd =
+                            ctx->dmabuff_fd[v4l2_buf.index];
+                    // Convert Blocklinear to PitchLinear
+                    ret = NvBufferTransform(dec_buffer->planes[0].fd,
+                                            ctx->dst_dma_fd, &transform_params);
+                    if (ret == -1) {
+                        SPDLOG_TRACE("Transform failed");
+                        break;
+                    }
+
+                    // Write raw video frame to file
+                    if (!ctx->stats) {
+                        // Dumping two planes of NV12 and three for I420
+                        // dump_dmabuf(ctx->dst_dma_fd, 0, ctx->out_file);
+                        // dump_dmabuf(ctx->dst_dma_fd, 1, ctx->out_file);
+                        // if (ctx->out_pixfmt != 1) {
+                        //     dump_dmabuf(ctx->dst_dma_fd, 2, ctx->out_file);
+                        // }
+                    }
+
+                    if (!ctx->stats && display) {
+                        // ctx->renderer->render(ctx->dst_dma_fd);
+                    }
+
+                    // Not writing to file
+                    // Queue the buffer back once it has been used.
+                    if (ctx->capture_plane_mem_type == V4L2_MEMORY_DMABUF)
+                        v4l2_buf.m.planes[0].m.fd =
+                            ctx->dmabuff_fd[v4l2_buf.index];
+                    if (dec->capture_plane.qBuffer(v4l2_buf, NULL) < 0) {
+                        Abort();
+                        SPDLOG_TRACE(
+                            "Error while queueing buffer at decoder capture "
+                            "plane");
+                        break;
+                    }
+                }
+            }
+            else {
+                // Not writing to file
+                // Queue the buffer back once it has been used.
+                if (ctx->capture_plane_mem_type == V4L2_MEMORY_DMABUF)
+                    v4l2_buf.m.planes[0].m.fd = ctx->dmabuff_fd[v4l2_buf.index];
+                if (dec->capture_plane.qBuffer(v4l2_buf, NULL) < 0) {
+                    Abort();
+                    SPDLOG_TRACE(
+                        "Error while queueing buffer at decoder capture "
+                        "plane");
+                    break;
+                }
+            }
+        }
+    }
+    if (!use_nvbuf_transform_api_) {
+        // Send EOS to converter
+        if (ctx->conv) {
+            if (sendEOStoConverter() < 0) {
+                SPDLOG_ERROR(
+                    "Error while queueing EOS buffer on converter output");
+            }
+        }
+    }
+    SPDLOG_ERROR("Exiting decoder capture loop thread");
+    return NULL;
+}
+
 void GPNvVideoDecoder::set_defaults()
 {
     memset(ctx_.get(), 0, sizeof(VideoDecodeContext_T));
@@ -823,6 +1042,8 @@ void GPNvVideoDecoder::set_defaults()
         ctx_->conv_output_plane_buf_queue = new std::queue<NvBuffer*>;
         ctx_->rescale_method = V4L2_YUV_RESCALE_NONE;
     }
+    ctx_->blocking_mode = 1;
+
     pthread_mutex_init(&ctx_->queue_lock, NULL);
     pthread_cond_init(&ctx_->queue_cond, NULL);
 }
@@ -1136,6 +1357,94 @@ bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos)
     return eos;
 }
 
+bool GPNvVideoDecoder::decoder_proc_blocking(bool eos)
+{
+    // Since all the output plane buffers have been queued, we first need to
+    // dequeue a buffer from output plane before we can read new data into it
+    // and queue it again.
+    int allow_DQ = true;
+    int ret = 0;
+    struct v4l2_buffer temp_buf;
+    VideoDecodeContext_T& ctx = *ctx_.get();
+
+    while (!eos && !ctx.got_error && !ctx.dec->isInError()) {
+        struct v4l2_buffer v4l2_buf;
+        struct v4l2_plane planes[MAX_PLANES];
+        NvBuffer* buffer;
+
+        memset(&v4l2_buf, 0, sizeof(v4l2_buf));
+        memset(planes, 0, sizeof(planes));
+
+        v4l2_buf.m.planes = planes;
+
+        if (allow_DQ) {
+            ret = ctx.dec->output_plane.dqBuffer(v4l2_buf, &buffer, NULL, -1);
+            if (ret < 0) {
+                SPDLOG_ERROR("Error DQing buffer at output plane");
+                Abort();
+                break;
+            }
+        }
+        else {
+            allow_DQ = true;
+            memcpy(&v4l2_buf, &temp_buf, sizeof(v4l2_buffer));
+            buffer = ctx.dec->output_plane.getNthBuffer(v4l2_buf.index);
+        }
+
+        if ((v4l2_buf.flags & V4L2_BUF_FLAG_ERROR) &&
+            ctx.enable_input_metadata) {
+            v4l2_ctrl_videodec_inputbuf_metadata dec_input_metadata;
+
+            ret = ctx.dec->getInputMetadata(v4l2_buf.index, dec_input_metadata);
+            if (ret == 0) {
+                ret = report_input_metadata(&dec_input_metadata);
+                if (ret == -1) {
+                    SPDLOG_ERROR("Error with input stream header parsing");
+                }
+            }
+        }
+
+        if ((ctx.decoder_pixfmt == V4L2_PIX_FMT_H264) ||
+            (ctx.decoder_pixfmt == V4L2_PIX_FMT_H265) ||
+            (ctx.decoder_pixfmt == V4L2_PIX_FMT_MPEG2) ||
+            (ctx.decoder_pixfmt == V4L2_PIX_FMT_MPEG4)) {
+            if (ctx.input_nalu) {
+                read_decoder_input_nalu(buffer);
+            }
+            else {
+                read_decoder_input_chunk(buffer);
+            }
+        }
+        if (ctx.decoder_pixfmt == V4L2_PIX_FMT_VP9 ||
+            ctx.decoder_pixfmt == V4L2_PIX_FMT_VP8) {
+            ret = read_vpx_decoder_input_chunk(buffer);
+            if (ret != 0)
+                SPDLOG_ERROR("Couldn't read chunk");
+        }
+        v4l2_buf.m.planes[0].bytesused = buffer->planes[0].bytesused;
+
+        if (ctx.input_nalu && ctx.copy_timestamp && ctx.flag_copyts) {
+            v4l2_buf.flags |= V4L2_BUF_FLAG_TIMESTAMP_COPY;
+            ctx.timestamp += ctx.timestampincr;
+            v4l2_buf.timestamp.tv_sec = ctx.timestamp / (MICROSECOND_UNIT);
+            v4l2_buf.timestamp.tv_usec = ctx.timestamp % (MICROSECOND_UNIT);
+        }
+
+        ret = ctx.dec->output_plane.qBuffer(v4l2_buf, NULL);
+        if (ret < 0) {
+            SPDLOG_ERROR("Error Qing buffer at output plane");
+            Abort();
+            break;
+        }
+        if (v4l2_buf.m.planes[0].bytesused == 0) {
+            eos = true;
+            SPDLOG_TRACE("Input file read complete");
+            break;
+        }
+    }
+    return eos;
+}
+
 int GPNvVideoDecoder::Proc()
 {
     int ret = 0;
@@ -1149,9 +1458,14 @@ int GPNvVideoDecoder::Proc()
 
     pthread_setname_np(pthread_self(), "GPNvVideoDecoder::Proc");
 
-    SPDLOG_INFO("Creating decoder in non-blocking mode");
-
-    ctx_->dec = NvVideoDecoder::createVideoDecoder("dec0", O_NONBLOCK);
+    if (ctx_->blocking_mode) {
+        SPDLOG_INFO("Creating decoder in blocking mode");
+        ctx_->dec = NvVideoDecoder::createVideoDecoder("dec0");
+    }
+    else {
+        SPDLOG_INFO("Creating decoder in non-blocking mode");
+        ctx_->dec = NvVideoDecoder::createVideoDecoder("dec0", O_NONBLOCK);
+    }
     TEST_ERROR(!ctx_->dec, "Could not create decoder", cleanup);
 
     if (ctx_->stats) {
@@ -1241,8 +1555,15 @@ int GPNvVideoDecoder::Proc()
 
 #endif  //
 
-    decoder_poll_thread_ =
-        std::thread(&GPNvVideoDecoder::decoder_pollthread_fcn, this);
+    if (ctx_->blocking_mode) {
+        dec_capture_loop_ =
+            std::thread(&GPNvVideoDecoder::dec_capture_loop_fcn, this);
+        // pthread_setname_np(ctx.dec_capture_loop, "DecCapPlane");
+    }
+    else {
+        decoder_poll_thread_ =
+            std::thread(&GPNvVideoDecoder::decoder_pollthread_fcn, this);
+    }
 
     ProcessData();
 
@@ -1269,11 +1590,16 @@ int GPNvVideoDecoder::Proc()
     }
 
 cleanup:
-    // Clear the poll interrupt to get the decoder's poll thread out.
-    ctx_->dec->ClearPollInterrupt();
-    // If Pollthread is waiting on, signal it to exit the thread.
-    pollthread_sema_.release();
-    decoder_poll_thread_.join();
+    if (ctx_->blocking_mode) {
+        dec_capture_loop_.join();
+    }
+    else {
+        // Clear the poll interrupt to get the decoder's poll thread out.
+        ctx_->dec->ClearPollInterrupt();
+        // If Pollthread is waiting on, signal it to exit the thread.
+        pollthread_sema_.release();
+        decoder_poll_thread_.join();
+    }
 
     if (ctx_->capture_plane_mem_type == V4L2_MEMORY_DMABUF) {
         for (int index = 0; index < ctx_->numCapBuffers; index++) {
@@ -1331,11 +1657,51 @@ cleanup:
 void GPNvVideoDecoder::ProcessData()
 {
     bool eos = false;
+    int ret = 0;
 
-    eos = decoder_proc_nonblocking(eos);
+    if (ctx_->blocking_mode) {
+        eos = decoder_proc_blocking(eos);
+    }
+    else {
+        eos = decoder_proc_nonblocking(eos);
+    }
 
     // After sending EOS, all the buffers from output plane should be dequeued.
     // and after that capture plane loop should be signalled to stop.
+    if (ctx_->blocking_mode) {
+        while (ctx_->dec->output_plane.getNumQueuedBuffers() > 0 &&
+               !ctx_->got_error && !ctx_->dec->isInError()) {
+            struct v4l2_buffer v4l2_buf;
+            struct v4l2_plane planes[MAX_PLANES];
+
+            memset(&v4l2_buf, 0, sizeof(v4l2_buf));
+            memset(planes, 0, sizeof(planes));
+
+            v4l2_buf.m.planes = planes;
+            ret = ctx_->dec->output_plane.dqBuffer(v4l2_buf, NULL, NULL, -1);
+            if (ret < 0) {
+                SPDLOG_ERROR("Error DQing buffer at output plane");
+                Abort();
+                break;
+            }
+
+            if ((v4l2_buf.flags & V4L2_BUF_FLAG_ERROR) &&
+                ctx_->enable_input_metadata) {
+                v4l2_ctrl_videodec_inputbuf_metadata dec_input_metadata;
+
+                ret = ctx_->dec->getInputMetadata(v4l2_buf.index,
+                                                  dec_input_metadata);
+                if (ret == 0) {
+                    ret = report_input_metadata(&dec_input_metadata);
+                    if (ret == -1) {
+                        SPDLOG_ERROR("Error with input stream header parsing");
+                        Abort();
+                        break;
+                    }
+                }
+            }
+        }
+    }
 
     // Signal EOS to the decoder capture loop
     ctx_->got_eos = true;

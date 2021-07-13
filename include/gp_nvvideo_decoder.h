@@ -56,6 +56,8 @@ typedef struct : public context_t {
     uint64_t timestampincr;
     bool stats;
     bool enable_metadata;
+    bool bLoop = false;
+    bool bQueue = false;
     bool enable_input_metadata;
     enum v4l2_skip_frames_type skip_frames;
     enum v4l2_memory output_plane_mem_type;
@@ -73,6 +75,7 @@ typedef struct : public context_t {
     int numCapBuffers;
     int max_perf;
     int extra_cap_plane_buffer;
+    int blocking_mode = 1;  // Set to true if running in blocking mode
 } VideoDecodeContext_T;
 
 class GPNvVideoDecoder : public IBeader {
@@ -118,13 +121,16 @@ private:
 
     void query_and_set_capture();
     void* decoder_pollthread_fcn(void);
+    void* dec_capture_loop_fcn();
     void set_defaults();
     bool decoder_proc_nonblocking(bool eos);
+    bool decoder_proc_blocking(bool eos);
     void ProcessData();
 
 private:
     std::shared_ptr<VideoDecodeContext_T> ctx_;
     std::thread decoder_poll_thread_;
+    std::thread dec_capture_loop_;
     gp_circular_buffer<uint8_t> buffer_;
     std::mutex buffer_lock_;
     std::condition_variable buffer_condition_;
