@@ -34,8 +34,8 @@ namespace GPlayer {
 typedef struct : public context_t {
     NvVideoDecoder* dec;
     NvVideoConverter* conv;
-    uint32_t decoder_pixfmt;
-    bool fullscreen;
+    uint32_t decoder_pixfmt = V4L2_PIX_FMT_H264;
+    bool fullscreen = true;
     uint32_t window_height;
     uint32_t window_width;
     uint32_t window_x;
@@ -46,44 +46,31 @@ typedef struct : public context_t {
     uint32_t display_height;
     uint32_t display_width;
     float fps;
-
     bool disable_dpb;
     bool input_nalu;
-
     bool copy_timestamp;
     bool flag_copyts;
     uint32_t start_ts;
     float dec_fps;
     uint64_t timestamp;
     uint64_t timestampincr;
-
     bool stats;
-
     bool enable_metadata;
-    // bool bLoop;
-    // bool bQueue;
     bool enable_input_metadata;
     enum v4l2_skip_frames_type skip_frames;
     enum v4l2_memory output_plane_mem_type;
     enum v4l2_memory capture_plane_mem_type;
-    // #ifndef USE_NVBUF_TRANSFORM_API
     enum v4l2_yuv_rescale_method rescale_method;
-    // #endif
-
     std::queue<NvBuffer*>* conv_output_plane_buf_queue;
     pthread_mutex_t queue_lock;
     pthread_cond_t queue_cond;
-
-    pthread_t dec_capture_loop;  // Decoder capture thread, created if running
-                                 // in blocking mode.
-    bool got_error;
-    bool got_eos;
+    bool got_error = false;
+    bool got_eos = false;
     bool vp9_file_header_flag;
     bool vp8_file_header_flag;
-    int dst_dma_fd;
+    int dst_dma_fd = -1;
     int dmabuff_fd[MAX_BUFFERS];
     int numCapBuffers;
-    int loop_count;
     int max_perf;
     int extra_cap_plane_buffer;
 } VideoDecodeContext_T;
@@ -140,7 +127,7 @@ private:
     std::thread decoder_poll_thread_;
     gp_circular_buffer<uint8_t> buffer_;
     std::mutex buffer_lock_;
-    GPSemaphore buffer_sema_;
+    std::condition_variable buffer_condition_;
     GPSemaphore pollthread_sema_;
     GPSemaphore decoderthread_sema_;
     const bool use_nvbuf_transform_api_ = true;

@@ -25,8 +25,6 @@ int main(int argc, char* argv[])
     std::shared_ptr<VideoEncodeContext_T> econtext =
         std::make_shared<VideoEncodeContext_T>();
 
-    dcontext->decoder_pixfmt = V4L2_PIX_FMT_H264;
-
     std::shared_ptr<GPNvVideoDecoder> nvvideodecoder =
         std::make_shared<GPNvVideoDecoder>(dcontext);
     std::shared_ptr<GPCameraV4l2> v4l2 = std::make_shared<GPCameraV4l2>();

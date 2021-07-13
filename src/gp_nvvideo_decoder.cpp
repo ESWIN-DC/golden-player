@@ -57,10 +57,7 @@ const uint32_t CHUNK_SIZE = 4000000L;
 
 GPNvVideoDecoder::GPNvVideoDecoder(
     const std::shared_ptr<VideoDecodeContext_T> context)
-    : buffer_(CHUNK_SIZE * 16),
-      buffer_sema_(0),
-      pollthread_sema_(0),
-      decoderthread_sema_(0)
+    : buffer_(CHUNK_SIZE * 16), pollthread_sema_(0), decoderthread_sema_(0)
 {
     ctx_ = context;
     SetType(BeaderType::NvVideoDecoder);
@@ -83,7 +80,7 @@ void GPNvVideoDecoder::Process(GPData* data)
         SPDLOG_WARN("Buffer full!");
     }
     SPDLOG_CRITICAL("Buffer received!");
-    buffer_sema_.release();
+    buffer_condition_.notify_one();
 }
 
 int GPNvVideoDecoder::read_decoder_input_nalu(NvBuffer* buffer)
@@ -103,7 +100,6 @@ int GPNvVideoDecoder::read_decoder_input_nalu(NvBuffer* buffer)
 
     // Find the first NAL unit in the buffer
 
-    // while ((stream_ptr - parse_buffer) < (bytes_read - 3)) {
     while (buffer_.snap(stream_buffer, 4) == 4) {
         nalu_found = IS_NAL_UNIT_START(stream_buffer) ||
                      IS_NAL_UNIT_START1(stream_buffer);
@@ -188,7 +184,6 @@ int GPNvVideoDecoder::read_vpx_decoder_input_chunk(NvBuffer* buffer)
     size_t Framesize;
     unsigned char* bitstreambuffer = (unsigned char*)buffer->planes[0].data;
     if (ctx_->vp9_file_header_flag == 0) {
-        // stream->read((char*)buffer->planes[0].data, IVF_FILE_HDR_SIZE);
         bytes_read = buffer_.get(buffer->planes[0].data, IVF_FILE_HDR_SIZE);
         if (bytes_read != IVF_FILE_HDR_SIZE) {
             SPDLOG_ERROR("Couldn't read IVF FILE HEADER");
@@ -222,12 +217,12 @@ void GPNvVideoDecoder::Abort()
 {
     ctx_->got_error = true;
     ctx_->dec->abort();
-#ifndef USE_NVBUF_TRANSFORM_API
-    if (ctx_->conv) {
-        ctx_->conv->abort();
-        pthread_cond_broadcast(&ctx_->queue_cond);
+    if (!use_nvbuf_transform_api_) {
+        if (ctx_->conv) {
+            ctx_->conv->abort();
+            pthread_cond_broadcast(&ctx_->queue_cond);
+        }
     }
-#endif
 }
 
 // #ifndef USE_NVBUF_TRANSFORM_API
@@ -729,6 +724,7 @@ void GPNvVideoDecoder::query_and_set_capture()
         }
         // #endif
     }
+
     // Capture plane STREAMON
     ret = dec->capture_plane.setStreamStatus(true);
     TEST_ERROR(ret < 0, "Error in decoder capture plane streamon", error);
@@ -770,6 +766,8 @@ void* GPNvVideoDecoder::decoder_pollthread_fcn()
 
     memset(&devicepoll, 0, sizeof(v4l2_ctrl_video_device_poll));
 
+    ctx->dec->ClearPollInterrupt();
+
     // wait here until you are signalled to issue the Poll call.
     // Check if the abort status is set , if so exit
     // Else issue the Poll on the decoder and block.
@@ -791,13 +789,17 @@ void* GPNvVideoDecoder::decoder_pollthread_fcn()
         // We can check the devicepoll.resp_events bitmask to see which events
         // are set.
         decoderthread_sema_.release();
+        SPDLOG_CRITICAL(
+            "decoder_pollthread_fcn:devicepoll.resp_events={:x}, errno={}",
+            devicepoll.resp_events, errno);
     }
     return NULL;
 }
 
 void GPNvVideoDecoder::set_defaults()
 {
-    memset(ctx_.get(), 0, sizeof(context_t));
+    memset(ctx_.get(), 0, sizeof(VideoDecodeContext_T));
+    ctx_->decoder_pixfmt = V4L2_PIX_FMT_H264;
     ctx_->fullscreen = false;
     ctx_->window_height = 0;
     ctx_->window_width = 0;
@@ -809,6 +811,7 @@ void GPNvVideoDecoder::set_defaults()
     ctx_->capture_plane_mem_type = V4L2_MEMORY_DMABUF;
     ctx_->vp9_file_header_flag = 0;
     ctx_->vp8_file_header_flag = 0;
+    ctx_->skip_frames = V4L2_SKIP_FRAMES_TYPE_NONE;
     ctx_->copy_timestamp = false;
     ctx_->flag_copyts = false;
     ctx_->start_ts = 0;
@@ -817,10 +820,8 @@ void GPNvVideoDecoder::set_defaults()
     ctx_->max_perf = 0;
     ctx_->extra_cap_plane_buffer = 1;
     if (!use_nvbuf_transform_api_) {
-        // #ifndef USE_NVBUF_TRANSFORM_API
         ctx_->conv_output_plane_buf_queue = new std::queue<NvBuffer*>;
         ctx_->rescale_method = V4L2_YUV_RESCALE_NONE;
-        // #endif
     }
     pthread_mutex_init(&ctx_->queue_lock, NULL);
     pthread_cond_init(&ctx_->queue_cond, NULL);
@@ -872,26 +873,29 @@ bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos)
         // then wait here
 
         {
-            std::lock_guard<std::mutex> lock(buffer_lock_);
-            if (buffer_.size() == 0) {
-                SPDLOG_CRITICAL("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:{}",
-                                buffer_.size());
-                buffer_lock_.unlock();
-                buffer_sema_.acquire();
-                decoderthread_sema_.acquire();
-            }
+            std::unique_lock<std::mutex> lock(buffer_lock_);
+            buffer_condition_.wait(lock,
+                                   [this]() { return buffer_.size() > 0; });
         }
 
-        ret = ctx_->dec->dqEvent(ev, 0);
+        SPDLOG_CRITICAL("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:{}",
+                        buffer_.size());
+
+        decoderthread_sema_.acquire();
+
+        ret = ctx_->dec->dqEvent(ev, 50000);
         if (ret == 0) {
             if (ev.type == V4L2_EVENT_RESOLUTION_CHANGE) {
                 SPDLOG_TRACE("Got V4L2_EVENT_RESOLUTION_CHANGE EVENT \n");
                 query_and_set_capture();
             }
         }
-        else if (ret < 0 && errno == EINVAL) {
-            SPDLOG_ERROR("Error in dequeueing decoder event");
-            Abort();
+        else if (ret < 0) {
+            SPDLOG_CRITICAL("Error in dequeueing decoder event: errno={}",
+                            errno);
+            if (errno == EINVAL) {
+                Abort();
+            }
         }
 
         while (1) {
@@ -954,9 +958,12 @@ bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos)
                     size = read_decoder_input_chunk(output_buffer);
                 }
             }
-            if (ctx_->decoder_pixfmt == V4L2_PIX_FMT_VP9 ||
-                ctx_->decoder_pixfmt == V4L2_PIX_FMT_VP8) {
+            else if (ctx_->decoder_pixfmt == V4L2_PIX_FMT_VP9 ||
+                     ctx_->decoder_pixfmt == V4L2_PIX_FMT_VP8) {
                 size = read_vpx_decoder_input_chunk(output_buffer);
+            }
+            else {
+                SPDLOG_CRITICAL("The warhog is coming.");
             }
 
             if (size <= 0) {
@@ -1156,6 +1163,7 @@ int GPNvVideoDecoder::Proc()
     ret = ctx_->dec->subscribeEvent(V4L2_EVENT_RESOLUTION_CHANGE, 0, 0);
     TEST_ERROR(ret < 0, "Could not subscribe to V4L2_EVENT_RESOLUTION_CHANGE",
                cleanup);
+#if 1
 
     // Set format on the output plane
     ret = ctx_->dec->setOutputPlaneFormat(ctx_->decoder_pixfmt, CHUNK_SIZE);
@@ -1210,7 +1218,6 @@ int GPNvVideoDecoder::Proc()
 
     TEST_ERROR(ret < 0, "Error while setting up output plane", cleanup);
 
-    // #ifndef USE_NVBUF_TRANSFORM_API
     if (!use_nvbuf_transform_api_) {
         if (!display && !ctx_->stats) {
             // Create converter to convert from BL to PL for writing raw video
@@ -1227,11 +1234,12 @@ int GPNvVideoDecoder::Proc()
                 ctx_->conv->enableProfiling();
             }
         }
-        // #endif
     }
 
     ret = ctx_->dec->output_plane.setStreamStatus(true);
     TEST_ERROR(ret < 0, "Error in output plane stream on", cleanup);
+
+#endif  //
 
     decoder_poll_thread_ =
         std::thread(&GPNvVideoDecoder::decoder_pollthread_fcn, this);
@@ -1323,76 +1331,6 @@ cleanup:
 void GPNvVideoDecoder::ProcessData()
 {
     bool eos = false;
-    int ret = 0;
-
-    // Read encoded data and enqueue all the output plane buffers.
-    // Exit loop in case file read is complete.
-    uint32_t i = 0;
-    while (!eos && !ctx_->got_error && !ctx_->dec->isInError() &&
-           i < ctx_->dec->output_plane.getNumBuffers()) {
-        struct v4l2_buffer v4l2_buf;
-        struct v4l2_plane planes[MAX_PLANES];
-        NvBuffer* buffer;
-
-        memset(&v4l2_buf, 0, sizeof(v4l2_buf));
-        memset(planes, 0, sizeof(planes));
-
-        buffer = ctx_->dec->output_plane.getNthBuffer(i);
-
-        int size = 0;
-        if ((ctx_->decoder_pixfmt == V4L2_PIX_FMT_H264) ||
-            (ctx_->decoder_pixfmt == V4L2_PIX_FMT_H265) ||
-            (ctx_->decoder_pixfmt == V4L2_PIX_FMT_MPEG2) ||
-            (ctx_->decoder_pixfmt == V4L2_PIX_FMT_MPEG4)) {
-            if (ctx_->input_nalu) {
-                size = read_decoder_input_nalu(buffer);
-            }
-            else {
-                size = read_decoder_input_chunk(buffer);
-            }
-        }
-        else if (ctx_->decoder_pixfmt == V4L2_PIX_FMT_VP9 ||
-                 ctx_->decoder_pixfmt == V4L2_PIX_FMT_VP8) {
-            size = read_vpx_decoder_input_chunk(buffer);
-        }
-        else {
-            SPDLOG_CRITICAL("The warhog is coming.");
-        }
-
-        if (size <= 0) {
-            ret = size;
-            // ctx_->dec->ClearPollInterrupt(); // TRY
-            SPDLOG_ERROR("Couldn't read chunk:{}", ret);
-            eos = true;
-            break;
-        }
-
-        v4l2_buf.index = i;
-        v4l2_buf.m.planes = planes;
-        v4l2_buf.m.planes[0].bytesused = buffer->planes[0].bytesused;
-
-        if (ctx_->input_nalu && ctx_->copy_timestamp && ctx_->flag_copyts) {
-            v4l2_buf.flags |= V4L2_BUF_FLAG_TIMESTAMP_COPY;
-            ctx_->timestamp += ctx_->timestampincr;
-            v4l2_buf.timestamp.tv_sec = ctx_->timestamp / (MICROSECOND_UNIT);
-            v4l2_buf.timestamp.tv_usec = ctx_->timestamp % (MICROSECOND_UNIT);
-        }
-
-        // It is necessary to queue an empty buffer to signal EOS to the decoder
-        // i.e. set v4l2_buf.m.planes[0].bytesused = 0 and queue the buffer
-        ret = ctx_->dec->output_plane.qBuffer(v4l2_buf, NULL);
-        if (ret < 0) {
-            SPDLOG_ERROR("Error Qing buffer at output plane");
-            Abort();
-            break;
-        }
-        if (v4l2_buf.m.planes[0].bytesused == 0) {
-            eos = true;
-            SPDLOG_INFO("Input file read complete");
-            break;
-        }
-        i++;
-    }
 
     eos = decoder_proc_nonblocking(eos);
 
