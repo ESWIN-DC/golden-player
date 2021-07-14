@@ -126,6 +126,7 @@ private:
     bool decoder_proc_nonblocking(bool eos);
     bool decoder_proc_blocking(bool eos);
     void ProcessData();
+    int fillEmptyBuffer_(bool eos);
 
 private:
     std::shared_ptr<VideoDecodeContext_T> ctx_;
