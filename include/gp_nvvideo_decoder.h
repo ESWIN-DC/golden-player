@@ -75,7 +75,7 @@ typedef struct : public context_t {
     int numCapBuffers;
     int max_perf;
     int extra_cap_plane_buffer;
-    int blocking_mode = 1;  // Set to true if running in blocking mode
+    int blocking_mode = 0;  // Set to true if running in blocking mode
 } VideoDecodeContext_T;
 
 class GPNvVideoDecoder : public IBeader {

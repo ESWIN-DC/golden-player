@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <variant>
 
 namespace GPlayer {
 
@@ -75,6 +76,7 @@ public:
     }
 
 private:
+    std::variant<GPBuffer, GPEGLImage>* data_;
     DataType type_;
     union {
         GPBuffer* gpbuffer;
