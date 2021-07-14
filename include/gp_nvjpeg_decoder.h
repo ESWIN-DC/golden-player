@@ -10,7 +10,7 @@ class GPNvJpegDecoder : public IBeader {
 public:
     explicit GPNvJpegDecoder()
     {
-        SetType(BeaderType::NvJpegDecoder);
+        SetProperties("", "", BeaderType::NvJpegDecoder);
         jpegdec_ = NvJPEGDecoder::createJPEGDecoder("jpegdec");
     }
     std::string GetInfo() const override { return "NVJpegDecoder"; }

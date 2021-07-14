@@ -6,6 +6,7 @@
 #include <condition_variable>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <thread>
 
 #include "NvApplicationProfiler.h"
@@ -61,7 +62,7 @@ GPNvVideoDecoder::GPNvVideoDecoder(
     : buffer_(CHUNK_SIZE * 16), pollthread_sema_(0), decoderthread_sema_(0)
 {
     ctx_ = context;
-    SetType(BeaderType::NvVideoDecoder);
+    SetProperties("", "", BeaderType::NvVideoDecoder);
 }
 
 GPNvVideoDecoder::~GPNvVideoDecoder() {}
@@ -161,20 +162,33 @@ int GPNvVideoDecoder::read_decoder_input_nalu(NvBuffer* buffer)
 int GPNvVideoDecoder::read_decoder_input_chunk(NvBuffer* buffer)
 {
     // std::lock_guard<std::mutex> lk(buffer_lock_);
-    // Length is the size of the buffer in bytes
+
+    GPFileSrc* file_src =
+        dynamic_cast<GPFileSrc*>(GetBeader(BeaderType::FileSrc).get());
+
+    std::streamsize bytes_read;
     std::streamsize bytes_to_read =
         std::min(CHUNK_SIZE, buffer->planes[0].length);
-
+#if 0
     if (buffer_.size() == 0) {
         SPDLOG_WARN("No data in the buffer of {}", GetInfo());
         return 0;
     }
 
-    // It is necessary to set bytesused properly, so that decoder knows how
-    // many bytes in the buffer are valid
     buffer->planes[0].bytesused =
         buffer_.get(buffer->planes[0].data, bytes_to_read);
     return buffer->planes[0].bytesused;
+#endif
+
+    std::basic_istream<char>& stream = file_src->Read(
+        reinterpret_cast<char*>(buffer->planes[0].data), bytes_to_read);
+    bytes_read = stream.gcount();
+    if (bytes_read == 0) {
+        // stream.clear();
+        // stream.seekg(0, stream.beg);
+    }
+    buffer->planes[0].bytesused = bytes_read;
+    return bytes_read;
 }
 
 int GPNvVideoDecoder::read_vpx_decoder_input_chunk(NvBuffer* buffer)
@@ -1085,7 +1099,7 @@ bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos)
         // Since buffers have been queued, issue a post to start polling and
         // then wait here
 
-        {
+        if (!IsPassive()) {
             std::unique_lock<std::mutex> lock(buffer_lock_);
             buffer_condition_.wait(lock,
                                    [this]() { return buffer_.size() > 0; });

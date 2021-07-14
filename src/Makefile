@@ -20,6 +20,7 @@ SRCS := \
 	display.cpp \
 	gp_display_egl.cpp \
 	gp_filesink.cpp \
+	gp_filesrc.cpp \
 	gp_pipeline.cpp \
 	$(wildcard $(CLASS_DIR)/*.cpp)
 

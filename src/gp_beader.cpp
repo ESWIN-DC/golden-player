@@ -8,19 +8,45 @@
 
 namespace GPlayer {
 
-IBeader::IBeader() : type_(BeaderType::Unknown), name_("Unknown") {}
-void IBeader::SetType(BeaderType type)
+IBeader::IBeader()
+    : name_("Unknown"),
+      description_(""),
+      type_(BeaderType::Unknown),
+      is_passive_(false)
 {
-    type_ = type;
 }
+
+void IBeader::SetProperties(const std::string& name,
+                            const std::string& description,
+                            BeaderType type,
+                            bool is_passive)
+{
+    name_ = name;
+    description_ = description;
+    type_ = type;
+    is_passive_ = is_passive;
+}
+
 BeaderType IBeader::GetType() const
 {
     return type_;
 }
+
+bool IBeader::IsPassive() const
+{
+    return is_passive_;
+}
+
 std::string IBeader::GetName() const
 {
     return name_;
 }
+
+std::string IBeader::GetDescription() const
+{
+    return description_;
+}
+
 void IBeader::Link(const std::shared_ptr<IBeader>& beader)
 {
     std::lock_guard<std::mutex> guard(mutex_);

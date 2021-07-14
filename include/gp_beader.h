@@ -10,9 +10,11 @@
 namespace GPlayer {
 
 enum class BeaderDirection { Unknown = 0, Src, Sink };
+
 enum class BeaderType {
     Unknown = 0,
     CameraV4l2Src,
+    FileSrc,
     FileSink,
     EGLDisplaySink,
     NvVideoEncoder,
@@ -25,9 +27,14 @@ class IBeader {
 public:
     explicit IBeader();
     virtual std::string GetInfo() const = 0;
-    virtual void SetType(BeaderType type) final;
-    virtual BeaderType GetType() const final;
+    virtual void SetProperties(const std::string& name = "",
+                               const std::string& description = "",
+                               BeaderType type = BeaderType::Unknown,
+                               bool isPassive = false) final;
     virtual std::string GetName() const final;
+    virtual std::string GetDescription() const final;
+    virtual BeaderType GetType() const final;
+    virtual bool IsPassive() const final;
     virtual void Link(const std::shared_ptr<IBeader>& beader) final;
     virtual void Link(
         const std::vector<std::shared_ptr<IBeader>>& beaders) final;
@@ -39,8 +46,10 @@ public:
     virtual int Proc();
 
 private:
+    std::string name_;
+    std::string description_;
     BeaderType type_;
-    char name_[32];
+    bool is_passive_;
     std::vector<std::shared_ptr<IBeader>> beaders_;
     std::mutex mutex_;
     GPPipeline* pipeline_;

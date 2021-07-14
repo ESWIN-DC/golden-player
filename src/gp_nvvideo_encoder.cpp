@@ -42,7 +42,7 @@ using namespace std;
 GPNvVideoEncoder::GPNvVideoEncoder(
     const shared_ptr<VideoEncodeContext_T> context)
 {
-    SetType(BeaderType::NvVideoEncoder);
+    SetProperties("", "", BeaderType::NvVideoEncoder);
     ctx_ = context;
 }
 

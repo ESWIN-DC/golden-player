@@ -28,7 +28,7 @@ using namespace std;
 
 GPCameraV4l2::GPCameraV4l2()
 {
-    SetType(BeaderType::CameraV4l2Src);
+    SetProperties("", "", BeaderType::CameraV4l2Src);
 
     nvcolor_fmt_ = {
         // TODO: add more pixel format mapping
