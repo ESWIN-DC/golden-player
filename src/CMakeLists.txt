@@ -22,21 +22,34 @@ include_directories(
 
 file(GLOB tmmSources ${CLASS_DIR}/*.cpp)
 
-add_library(ccccc STATIC
-	${ALGO_CUDA_DIR}/NvCudaProc.cpp
-	${ALGO_CUDA_DIR}/NvAnalysis.cu
+# add_library(ccccc STATIC
+	# ${ALGO_CUDA_DIR}/NvCudaProc.cpp
+# 	${ALGO_CUDA_DIR}/NvAnalysis.cu
+# )
+
+add_custom_command(
+    OUTPUT ${ALGO_CUDA_DIR}/NvAnalysis.o
+	OUTPUT ${ALGO_CUDA_DIR}/NvCudaProc.o
+    COMMAND make -C ${ALGO_CUDA_DIR}
+	WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
+    COMMENT "Build CUDA ..."
 )
 
 add_library(golden-player STATIC
 	${tmmSources}
+	${ALGO_CUDA_DIR}/NvAnalysis.o
+	${ALGO_CUDA_DIR}/NvCudaProc.o
 	${ARGUS_UTILS_DIR}/Thread.cpp
 	${ARGUS_UTILS_DIR}/NativeBuffer.cpp
 	${ARGUS_UTILS_DIR}/nvmmapi/NvNativeBuffer.cpp
-    video_decode_context.cpp
-	video_encode_context.cpp
-	gp_nvvideo_decoder.cpp
-	gp_nvvideo_encoder.cpp
-	camera_recorder.cpp
+	gp_beader.cpp 
+	gp_threadpool.cpp 
+	gp_configuration.cpp 
+	video_decode_context.cpp 
+	video_encode_context.cpp 
+	gp_nvvideo_decoder.cpp 
+	gp_nvvideo_encoder.cpp 
+	camera_recorder.cpp 
 	gp_camera_v4l2.cpp
 	display.cpp
 	gp_display_egl.cpp

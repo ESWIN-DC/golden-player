@@ -1,6 +1,4 @@
 
-file(GLOB gplayerSources *.cpp)
-
 set(ARGUS_UTILS_DIR ${THIRDPARTY_DIR}/tegra_multimedia_api-R32.2.3/argus/samples/utils)
 set(CUDA_PATH /usr/local/cuda)
 
@@ -42,14 +40,42 @@ link_directories(
 )
 
 add_executable(gplayer 
-    ${gplayerSources})
+    gplayer.cpp)
 
-target_link_libraries(gplayer 
+target_link_libraries(gplayer
     golden-player
     pthread v4l2 EGL GLESv2 X11
 	nvbuf_utils nvjpeg nvosd drm
 	cuda cudart
 	nvinfer nvparsers
-    spdlog)
+    spdlog
+	nveglstream_camconsumer
+	nvargus_socketclient)
+
+add_executable(gplayer-h264 
+    gplayer-h264.cpp)
+
+target_link_libraries(gplayer-h264
+    golden-player
+    pthread v4l2 EGL GLESv2 X11
+	nvbuf_utils nvjpeg nvosd drm
+	cuda cudart
+	nvinfer nvparsers
+    spdlog
+	nveglstream_camconsumer
+	nvargus_socketclient)
+
+add_executable(gplayer-mjpeg
+    gplayer-mjpeg.cpp)
+
+target_link_libraries(gplayer-mjpeg
+    golden-player
+    pthread v4l2 EGL GLESv2 X11
+	nvbuf_utils nvjpeg nvosd drm
+	cuda cudart
+	nvinfer nvparsers
+    spdlog
+	nveglstream_camconsumer
+	nvargus_socketclient)
 
 install(TARGETS gplayer DESTINATION bin)
