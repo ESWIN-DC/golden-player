@@ -9,7 +9,7 @@
 
 namespace GPlayer {
 
-enum class BeaderDirection { Unknown = 0, Src, Sink };
+enum class BeaderDirection { Downstream = 1, Upstream = 2, All = 3 };
 
 enum class BeaderType {
     Unknown = 0,
@@ -40,7 +40,9 @@ public:
         const std::vector<std::shared_ptr<IBeader>>& beaders) final;
     virtual void Unlink(IBeader* module) final;
     virtual void Unlink(BeaderType type) final;
-    virtual std::shared_ptr<IBeader> GetBeader(BeaderType type) final;
+    virtual std::shared_ptr<IBeader> GetBeader(
+        BeaderType type,
+        BeaderDirection direction = BeaderDirection::Downstream) final;
     virtual bool Attach(GPPipeline* pipeline) final;
     virtual bool HasProc() = 0;
     virtual int Proc();

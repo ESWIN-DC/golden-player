@@ -34,9 +34,9 @@ bool GPPipeline::Add(const std::vector<std::shared_ptr<IBeader>>& elementList)
     return true;
 }
 
-bool GPPipeline::Insert(const std::shared_ptr<IBeader>& element)
+std::vector<std::shared_ptr<IBeader>>& GPPipeline::GetBeaderList()
 {
-    return true;
+    return elements_;
 }
 
 bool GPPipeline::Run()

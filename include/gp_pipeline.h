@@ -7,6 +7,7 @@
 #include <list>
 #include <memory>
 #include <queue>
+#include <thread>
 
 #include "gp_beader.h"
 
@@ -32,7 +33,9 @@ public:
     ~GPPipeline();
     bool Add(const std::shared_ptr<IBeader>& element);
     bool Add(const std::vector<std::shared_ptr<IBeader>>& elementList);
-    bool Insert(const std::shared_ptr<IBeader>& element);
+    std::vector<std::shared_ptr<IBeader>>& GetBeaderList();
+    const std::shared_ptr<IBeader>& Find(
+        const std::shared_ptr<IBeader>& beader);
     bool Run();
     bool Reload();
     void Terminate();

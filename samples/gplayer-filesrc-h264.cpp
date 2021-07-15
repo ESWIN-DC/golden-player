@@ -26,8 +26,8 @@ int main(int argc, char* argv[])
     std::shared_ptr<GPNvVideoDecoder> nvvideodecoder =
         std::make_shared<GPNvVideoDecoder>(dcontext);
     std::shared_ptr<GPDisplayEGL> egl = std::make_shared<GPDisplayEGL>();
-    std::shared_ptr<GPFileSrc> h264fileSrc =
-        std::make_shared<GPFileSrc>(std::string("try000.h264"));
+    std::shared_ptr<GPFileSrc> h264fileSrc = std::make_shared<GPFileSrc>(
+        std::string("sample_outdoor_car_1080p_10fps.h264"));
     std::shared_ptr<GPFileSink> h264file =
         std::make_shared<GPFileSink>(std::string("try001.h264"));
 

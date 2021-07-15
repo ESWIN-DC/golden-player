@@ -97,8 +97,6 @@ private:
     int read_decoder_input_chunk(NvBuffer* buffer);
     int read_vpx_decoder_input_chunk(NvBuffer* buffer);
     void Abort();
-
-    // #ifndef USE_NVBUF_TRANSFORM_API
     static bool conv0_output_dqbuf_thread_callback(struct v4l2_buffer* v4l2_buf,
                                                    NvBuffer* buffer,
                                                    NvBuffer* shared_buffer,
@@ -109,15 +107,10 @@ private:
         NvBuffer* buffer,
         NvBuffer* shared_buffer,
         void* arg);
-    // #endif
-
     int report_input_metadata(
         v4l2_ctrl_videodec_inputbuf_metadata* input_metadata);
     void report_metadata(v4l2_ctrl_videodec_outputbuf_metadata* metadata);
-
-    // #ifndef USE_NVBUF_TRANSFORM_API
     int sendEOStoConverter();
-    // #endif
 
     void query_and_set_capture();
     void* decoder_pollthread_fcn(void);
@@ -126,7 +119,6 @@ private:
     bool decoder_proc_nonblocking(bool eos);
     bool decoder_proc_blocking(bool eos);
     void ProcessData();
-    int fillEmptyBuffer_(bool eos);
 
 private:
     std::shared_ptr<VideoDecodeContext_T> ctx_;

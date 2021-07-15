@@ -1,10 +1,12 @@
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "gp_beader.h"
 #include "gp_data.h"
 #include "gp_log.h"
+#include "gp_pipeline.h"
 
 namespace GPlayer {
 
@@ -61,13 +63,19 @@ void IBeader::Link(const std::shared_ptr<IBeader>& beader)
     }
 
     if (beader->GetBeader(type_).get() == this) {
-        SPDLOG_ERROR("BUGBUG: Cannot link beads to each other.");
+        SPDLOG_ERROR("BUGBUG: Cannot link the beader to itself.");
         return;
     }
 
-    beaders_.emplace_back(beader);
-    SPDLOG_TRACE("{} linked the beader type={} info={} ...", GetInfo(),
-                 beader->GetType(), beader->GetInfo());
+    if (!beader->IsPassive()) {
+        beaders_.emplace_back(beader);
+        SPDLOG_TRACE("{} linked the beader type={} info={} ...", GetInfo(),
+                     beader->GetType(), beader->GetInfo());
+        return;
+    }
+
+    SPDLOG_TRACE("{} is unable to link the beader type={} info={} ...",
+                 GetInfo(), beader->GetType(), beader->GetInfo());
 }
 
 void IBeader::Link(const std::vector<std::shared_ptr<IBeader>>& beaders)
@@ -86,10 +94,11 @@ void IBeader::Link(const std::vector<std::shared_ptr<IBeader>>& beaders)
                     "different pipelines.",
                     GetInfo(), beader->GetInfo());
             }
+
+            Link(beader);
             SPDLOG_TRACE("{} link the beader type={} info={}...", GetInfo(),
                          beader->GetType(), beader->GetInfo());
         });
-    beaders_.insert(beaders_.end(), beaders.begin(), beaders.end());
 }
 
 void IBeader::Unlink(IBeader* module)
@@ -114,14 +123,38 @@ void IBeader::Unlink(BeaderType type)
     }
 }
 
-std::shared_ptr<IBeader> IBeader::GetBeader(BeaderType type)
+std::shared_ptr<IBeader> IBeader::GetBeader(BeaderType type,
+                                            BeaderDirection direction)
 {
     std::lock_guard<std::mutex> guard(mutex_);
-    for (auto it = beaders_.begin(); it != beaders_.end(); ++it) {
-        if ((*it)->type_ == type) {
-            return *it;
+    if (static_cast<int>(direction) &
+        static_cast<int>(BeaderDirection::Downstream)) {
+        for (auto it = beaders_.begin(); it != beaders_.end(); ++it) {
+            if ((*it)->type_ == type) {
+                SPDLOG_TRACE(
+                    "Found downstream beader [type = {}] for beader [{}].",
+                    (*it)->type_, type_);
+                return *it;
+            }
         }
     }
+
+    if (static_cast<int>(direction) &
+        static_cast<int>(BeaderDirection::Upstream)) {
+        std::vector<std::shared_ptr<IBeader>> beaders =
+            pipeline_->GetBeaderList();
+        for (auto it = beaders.begin(); it != beaders.end(); ++it) {
+            if ((*it)->GetBeader(type_, BeaderDirection::Downstream).get() ==
+                this) {
+                SPDLOG_TRACE(
+                    "Found upstream beader [type = {}] for beader [{}].",
+                    (*it)->type_, type_);
+                return *it;
+            }
+        };
+    }
+
+    SPDLOG_TRACE("No found beader [type = {}] in beader [{}].", type, type_);
     return nullptr;
 }
 

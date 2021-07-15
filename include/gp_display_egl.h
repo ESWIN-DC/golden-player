@@ -1,7 +1,17 @@
 #ifndef __GPDISPLAY_EGL___
 #define __GPDISPLAY_EGL___
 
+#include <queue>
+
+#include "EGL/egl.h"
+#include "EGL/eglext.h"
+#include "NvEglRenderer.h"
+#include "NvVideoConverter.h"
+#include "NvVideoDecoder.h"
+
 #include "gp_beader.h"
+#include "nvosd.h"
+
 namespace GPlayer {
 
 class Display {
@@ -29,7 +39,7 @@ public:
     EGLImageKHR GetImage(int fd);
 
 private:
-    // EGL renderer
+    NvVideoConverter* conv_;
     NvEglRenderer* renderer_;
 
     // CUDA processing
@@ -37,6 +47,16 @@ private:
     EGLDisplay egl_display_;
 
     std::vector<IBeader*> handlers_;
+
+    bool enable_osd;
+    bool enable_osd_text;
+    char* osd_file_path;
+    std::ifstream* osd_file;
+    NvOSD_RectParams g_rect[100];
+    int g_rect_num;
+
+    char* osd_text;
+    NvOSD_TextParams textParams;
 };
 
 }  // namespace GPlayer
