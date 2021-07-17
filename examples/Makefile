@@ -1,6 +1,6 @@
 include ../Rules.mk
 
-APP := gplayer gplayer-h264 gplayer-mjpeg
+APP := gplayer gplayer-h264 gplayer-mjpeg gplayer-filesrc-h264
 
 ARGUS_UTILS_DIR := $(TOP_DIR)/third_party/tegra_multimedia_api-R32.2.3/argus/samples/utils
 
@@ -21,6 +21,7 @@ SRCS := \
 	gplayer.cpp \
 	gplayer-h264.cpp \
 	gplayer-mjpeg.cpp \
+	gplayer-filesrc-h264.cpp \
 
 OBJS := $(SRCS:.cpp=.o)
 
@@ -32,15 +33,19 @@ all: $(APP)
 
 gplayer: gplayer.o ../src/libgolden-player.a
 	@echo "Linking: $@"
-	$(CPP) -o $@ gplayer.o $(CPPFLAGS) $(LDFLAGS)
+	$(CPP) -o $@ $^ $(CPPFLAGS) $(LDFLAGS)
 
 gplayer-h264: gplayer-h264.o ../src/libgolden-player.a
 	@echo "Linking: $@"
-	$(CPP) -o $@ gplayer-h264.o $(CPPFLAGS) $(LDFLAGS)
+	$(CPP) -o $@ $^ $(CPPFLAGS) $(LDFLAGS)
 
 gplayer-mjpeg:  gplayer-mjpeg.o ../src/libgolden-player.a
 	@echo "Linking: $@"	
-	$(CPP) -o $@ gplayer-mjpeg.o $(CPPFLAGS) $(LDFLAGS)
+	$(CPP) -o $@ $^ $(CPPFLAGS) $(LDFLAGS)
+
+gplayer-filesrc-h264:  gplayer-filesrc-h264.o ../src/libgolden-player.a
+	@echo "Linking: $@"	
+	$(CPP) -o $@ $^ $(CPPFLAGS) $(LDFLAGS)
 
 install: $(APP)
 	@echo "Installing: $(APP)"

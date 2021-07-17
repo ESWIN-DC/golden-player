@@ -78,4 +78,17 @@ target_link_libraries(gplayer-mjpeg
 	nveglstream_camconsumer
 	nvargus_socketclient)
 
+add_executable(gplayer-filesrc-h264
+    gplayer-mjpeg.cpp)
+
+target_link_libraries(gplayer-filesrc-h264
+    golden-player
+    pthread v4l2 EGL GLESv2 X11
+	nvbuf_utils nvjpeg nvosd drm
+	cuda cudart
+	nvinfer nvparsers
+    spdlog
+	nveglstream_camconsumer
+	nvargus_socketclient)
+
 install(TARGETS gplayer DESTINATION bin)

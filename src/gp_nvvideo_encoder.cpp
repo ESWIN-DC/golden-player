@@ -42,7 +42,7 @@ using namespace std;
 GPNvVideoEncoder::GPNvVideoEncoder(
     const shared_ptr<VideoEncodeContext_T> context)
 {
-    SetType(BeaderType::NvVideoEncoder);
+    SetProperties("", "", BeaderType::NvVideoEncoder);
     ctx_ = context;
 }
 
@@ -117,7 +117,7 @@ bool GPNvVideoEncoder::encoder_capture_plane_dq_callback(
 
     // videoEncoder->write_encoder_output_frame(ctx->out_file, buffer);
     GPFileSink* handler = dynamic_cast<GPFileSink*>(
-        videoEncoder->GetBeader(BeaderType::FileSink).get());
+        videoEncoder->GetChild(BeaderType::FileSink).get());
     if (handler) {
         GPBuffer gpbuffer(buffer->planes[0].data, buffer->planes[0].bytesused);
         GPData data(&gpbuffer);

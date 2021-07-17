@@ -97,8 +97,6 @@ private:
     int read_decoder_input_chunk(NvBuffer* buffer);
     int read_vpx_decoder_input_chunk(NvBuffer* buffer);
     void Abort();
-
-    // #ifndef USE_NVBUF_TRANSFORM_API
     static bool conv0_output_dqbuf_thread_callback(struct v4l2_buffer* v4l2_buf,
                                                    NvBuffer* buffer,
                                                    NvBuffer* shared_buffer,
@@ -109,15 +107,10 @@ private:
         NvBuffer* buffer,
         NvBuffer* shared_buffer,
         void* arg);
-    // #endif
-
     int report_input_metadata(
         v4l2_ctrl_videodec_inputbuf_metadata* input_metadata);
     void report_metadata(v4l2_ctrl_videodec_outputbuf_metadata* metadata);
-
-    // #ifndef USE_NVBUF_TRANSFORM_API
     int sendEOStoConverter();
-    // #endif
 
     void query_and_set_capture();
     void* decoder_pollthread_fcn(void);
@@ -136,7 +129,7 @@ private:
     std::condition_variable buffer_condition_;
     GPSemaphore pollthread_sema_;
     GPSemaphore decoderthread_sema_;
-    const bool use_nvbuf_transform_api_ = true;
+    const bool use_nvbuf_transform_api_ = false;
 };
 
 };  // namespace GPlayer

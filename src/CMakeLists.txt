@@ -54,6 +54,7 @@ add_library(golden-player STATIC
 	display.cpp
 	gp_display_egl.cpp
 	gp_filesink.cpp
+	gp_filesrc.cpp
 	gp_pipeline.cpp)
 
 install(TARGETS golden-player DESTINATION lib)

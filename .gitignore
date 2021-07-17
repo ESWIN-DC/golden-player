@@ -3,6 +3,7 @@
 samples/gplayer
 samples/gplayer-h264
 samples/gplayer-mjpeg
+samples/gplayer-filesrc-h264
 .ccls-cache
 .ccls
 third_party/

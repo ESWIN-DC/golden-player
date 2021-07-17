@@ -26,7 +26,8 @@ namespace GPlayer {
 
 GPDisplayEGL::GPDisplayEGL() : egl_display_(EGL_NO_DISPLAY)
 {
-    SetType(BeaderType::EGLDisplaySink);
+    SetProperties("GPDisplayEGL", "GPDisplayEGL", BeaderType::EGLDisplaySink,
+                  true);
 }
 
 GPDisplayEGL::~GPDisplayEGL()

@@ -1,5 +1,5 @@
-#ifndef __GP_FILESINK__
-#define __GP_FILESINK__
+#ifndef __GP_FILESRC__
+#define __GP_FILESRC__
 
 #include <fstream>
 #include <string>
@@ -9,22 +9,23 @@
 
 namespace GPlayer {
 
-class GPFileSink : public IBeader {
+class GPFileSrc : public IBeader {
 private:
-    GPFileSink() = delete;
+    GPFileSrc() = delete;
 
 public:
-    GPFileSink(std::string filename);
-    ~GPFileSink();
+    GPFileSrc(std::string filename);
+    ~GPFileSrc();
     std::string GetInfo() const;
     bool HasProc() override { return false; };
     void Process(GPData* data);
+    std::basic_istream<char>& Read(char* buffer, std::streamsize count);
 
 private:
     std::string filepath_;
-    std::ofstream* outfile_;
+    std::ifstream* inputfile_;
 };
 
 }  // namespace GPlayer
 
-#endif  // __GP_FILESINK__
+#endif  // __GP_FILESRC__
