@@ -9,7 +9,7 @@
 
 namespace GPlayer {
 
-enum class BeaderDirection { Downstream = 1, Upstream = 2, All = 3 };
+// enum class BeaderDirection { Downstream = 1, Upstream = 2, All = 3 };
 
 enum class BeaderType {
     Unknown = 0,
@@ -30,7 +30,7 @@ public:
     virtual void SetProperties(const std::string& name = "",
                                const std::string& description = "",
                                BeaderType type = BeaderType::Unknown,
-                               bool isPassive = false) final;
+                               bool isPassive = true) final;
     virtual std::string GetName() const final;
     virtual std::string GetDescription() const final;
     virtual BeaderType GetType() const final;
@@ -38,11 +38,10 @@ public:
     virtual void Link(const std::shared_ptr<IBeader>& beader) final;
     virtual void Link(
         const std::vector<std::shared_ptr<IBeader>>& beaders) final;
-    virtual void Unlink(IBeader* module) final;
+    virtual void Unlink(IBeader* beader) final;
     virtual void Unlink(BeaderType type) final;
-    virtual std::shared_ptr<IBeader> GetBeader(
-        BeaderType type,
-        BeaderDirection direction = BeaderDirection::Downstream) final;
+    virtual std::shared_ptr<IBeader> GetChild(BeaderType type) final;
+    virtual bool IsChild(const std::shared_ptr<IBeader>& beader) final;
     virtual bool Attach(GPPipeline* pipeline) final;
     virtual bool HasProc() = 0;
     virtual int Proc();
@@ -52,8 +51,8 @@ private:
     std::string description_;
     BeaderType type_;
     bool is_passive_;
-    std::vector<std::shared_ptr<IBeader>> beaders_;
-    std::mutex mutex_;
+    std::vector<std::shared_ptr<IBeader>> child_beaders_;
+    std::recursive_mutex mutex_;
     GPPipeline* pipeline_;
 };
 

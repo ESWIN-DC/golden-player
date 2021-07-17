@@ -129,7 +129,7 @@ private:
     std::condition_variable buffer_condition_;
     GPSemaphore pollthread_sema_;
     GPSemaphore decoderthread_sema_;
-    const bool use_nvbuf_transform_api_ = true;
+    const bool use_nvbuf_transform_api_ = false;
 };
 
 };  // namespace GPlayer

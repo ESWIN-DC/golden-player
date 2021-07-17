@@ -34,8 +34,9 @@ public:
     bool Add(const std::shared_ptr<IBeader>& element);
     bool Add(const std::vector<std::shared_ptr<IBeader>>& elementList);
     std::vector<std::shared_ptr<IBeader>>& GetBeaderList();
-    const std::shared_ptr<IBeader>& Find(
-        const std::shared_ptr<IBeader>& beader);
+    std::shared_ptr<IBeader> FindBeaderParent(
+        const std::shared_ptr<IBeader>& beader,
+        BeaderType type);
     bool Run();
     bool Reload();
     void Terminate();

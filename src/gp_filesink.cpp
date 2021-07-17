@@ -4,9 +4,9 @@ namespace GPlayer {
 
 GPFileSink::GPFileSink(std::string filepath) : filepath_(filepath)
 {
-    outfile_ = new std::ofstream(filepath);
-    SetProperties("", "", BeaderType::FileSink);
+    SetProperties("GPFileSink", "GPFileSink", BeaderType::FileSink, true);
 
+    outfile_ = new std::ofstream(filepath);
     if (outfile_->is_open()) {
         SPDLOG_TRACE("Open output file {}", filepath);
     }

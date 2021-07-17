@@ -39,6 +39,20 @@ std::vector<std::shared_ptr<IBeader>>& GPPipeline::GetBeaderList()
     return elements_;
 }
 
+std::shared_ptr<IBeader> GPPipeline::FindBeaderParent(
+    const std::shared_ptr<IBeader>& beader,
+    BeaderType type)
+{
+    std::lock_guard<std::mutex> guard(mutex_);
+    for (auto it = elements_.begin(); it != elements_.end(); ++it) {
+        if ((*it)->IsChild(beader) && (*it)->GetType() == type) {
+            return (*it);
+        }
+    }
+
+    return nullptr;
+}
+
 bool GPPipeline::Run()
 {
     std::for_each(elements_.begin(), elements_.end(),

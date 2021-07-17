@@ -28,7 +28,7 @@ using namespace std;
 
 GPCameraV4l2::GPCameraV4l2()
 {
-    SetProperties("", "", BeaderType::CameraV4l2Src);
+    SetProperties("", "", BeaderType::CameraV4l2Src, false);
 
     nvcolor_fmt_ = {
         // TODO: add more pixel format mapping
@@ -297,8 +297,8 @@ bool GPCameraV4l2::camera_initialize(v4l2_context_t* ctx)
 
 bool GPCameraV4l2::init_components(v4l2_context_t* ctx)
 {
-    GPDisplayEGL* display = dynamic_cast<GPDisplayEGL*>(
-        GetBeader(BeaderType::EGLDisplaySink).get());
+    GPDisplayEGL* display =
+        dynamic_cast<GPDisplayEGL*>(GetChild(BeaderType::EGLDisplaySink).get());
 
     if (!camera_initialize(ctx))
         ERROR_RETURN("Failed to initialize camera device");
@@ -526,9 +526,9 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
     struct pollfd fds[1];
     NvBufferTransformParams transParams;
     GPNvJpegDecoder* jpeg_decoder = dynamic_cast<GPNvJpegDecoder*>(
-        GetBeader(BeaderType::NvJpegDecoder).get());
-    GPDisplayEGL* display = dynamic_cast<GPDisplayEGL*>(
-        GetBeader(BeaderType::EGLDisplaySink).get());
+        GetChild(BeaderType::NvJpegDecoder).get());
+    GPDisplayEGL* display =
+        dynamic_cast<GPDisplayEGL*>(GetChild(BeaderType::EGLDisplaySink).get());
 
     // Ensure a clean shutdown if user types <ctrl+c>
     sig_action.sa_handler = signal_handle;
@@ -590,8 +590,8 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
             if (ctx->frame == ctx->save_n_frame)
                 save_frame_to_file(ctx, &v4l2_buf);
 
-            GPFileSink* buffer_handler = dynamic_cast<GPFileSink*>(
-                GetBeader(BeaderType::FileSink).get());
+            GPFileSink* buffer_handler =
+                dynamic_cast<GPFileSink*>(GetChild(BeaderType::FileSink).get());
             if (buffer_handler) {
                 GPBuffer gpbuffer(pbuf, bufsize);
                 GPData data(&gpbuffer);
@@ -642,7 +642,7 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
                      ctx->cam_pixfmt == V4L2_PIX_FMT_VP9 ||
                      ctx->cam_pixfmt == V4L2_PIX_FMT_MPEG2 ||
                      ctx->cam_pixfmt == V4L2_PIX_FMT_MPEG4) {
-                IBeader* decoder = GetBeader(BeaderType::NvVideoDecoder).get();
+                IBeader* decoder = GetChild(BeaderType::NvVideoDecoder).get();
                 if (decoder) {
                     GPBuffer gpbuffer(pbuf, bufsize);
                     GPData data(&gpbuffer);
