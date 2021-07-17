@@ -7,25 +7,20 @@ set(TEGRA_ARMABI aarch64-linux-gnu)
 include_directories(
     # ${PROJECT_INCLUDE_DIR}
     ../include
-	"${THIRDPARTY_DIR}/spdlog/include" 
-	"${THIRDPARTY_DIR}/json/include" 
+	"${THIRDPARTY_DIR}/spdlog/include"
+	"${THIRDPARTY_DIR}/json/include"
 	"${THIRDPARTY_DIR}/tegra_multimedia_api-R32.2.3/include"
     "${THIRDPARTY_DIR}/tegra_multimedia_api-R32.2.3/argus/include"
-	"${THIRDPARTY_DIR}/tegra_multimedia_api-R32.2.3/include/libjpeg-8b" 
-	"${ALGO_CUDA_DIR}" 
+	"${THIRDPARTY_DIR}/tegra_multimedia_api-R32.2.3/include/libjpeg-8b"
+	"${ALGO_CUDA_DIR}"
 	"${ALGO_TRT_DIR}"
     "${ARGUS_UTILS_DIR}"
-	"${CMAKE_SYSROOT}/${CUDA_PATH}/include" 
-	"${CMAKE_SYSROOT}/usr/include/$(TEGRA_ARMABI)" 
-	"${CMAKE_SYSROOT}/usr/include/libdrm" 
+	"${CMAKE_SYSROOT}/${CUDA_PATH}/include"
+	"${CMAKE_SYSROOT}/usr/include/${TEGRA_ARMABI}"
+	"${CMAKE_SYSROOT}/usr/include/libdrm"
 	"${CMAKE_SYSROOT}/usr/include/opencv4")
 
 file(GLOB tmmSources ${CLASS_DIR}/*.cpp)
-
-# add_library(ccccc STATIC
-	# ${ALGO_CUDA_DIR}/NvCudaProc.cpp
-# 	${ALGO_CUDA_DIR}/NvAnalysis.cu
-# )
 
 add_custom_command(
     OUTPUT ${ALGO_CUDA_DIR}/NvAnalysis.o
@@ -42,14 +37,14 @@ add_library(golden-player STATIC
 	${ARGUS_UTILS_DIR}/Thread.cpp
 	${ARGUS_UTILS_DIR}/NativeBuffer.cpp
 	${ARGUS_UTILS_DIR}/nvmmapi/NvNativeBuffer.cpp
-	gp_beader.cpp 
-	gp_threadpool.cpp 
-	gp_configuration.cpp 
-	video_decode_context.cpp 
-	video_encode_context.cpp 
-	gp_nvvideo_decoder.cpp 
-	gp_nvvideo_encoder.cpp 
-	camera_recorder.cpp 
+	gp_beader.cpp
+	gp_threadpool.cpp
+	gp_configuration.cpp
+	video_decode_context.cpp
+	video_encode_context.cpp
+	gp_nvvideo_decoder.cpp
+	gp_nvvideo_encoder.cpp
+	camera_recorder.cpp
 	gp_camera_v4l2.cpp
 	display.cpp
 	gp_display_egl.cpp
