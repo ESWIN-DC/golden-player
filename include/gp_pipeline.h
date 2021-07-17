@@ -31,9 +31,8 @@ public:
     GPPipeline();
     ~GPPipeline();
     bool Add(const std::shared_ptr<IBeader>& element);
-    bool Add(std::vector<std::shared_ptr<IBeader>>& elementList);
+    bool Add(const std::vector<std::shared_ptr<IBeader>>& elementList);
     bool Insert(const std::shared_ptr<IBeader>& element);
-    bool Tee(const std::shared_ptr<IBeader>& element);
     bool Run();
     bool Reload();
     void Terminate();

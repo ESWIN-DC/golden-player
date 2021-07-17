@@ -16,20 +16,21 @@ GPPipeline::~GPPipeline()
 
 bool GPPipeline::Add(const std::shared_ptr<IBeader>& element)
 {
-    elements_.push_back(element);
+    elements_.emplace_back(element);
     return true;
 }
 
-bool GPPipeline::Add(std::vector<std::shared_ptr<IBeader>>& elementList)
+bool GPPipeline::Add(const std::vector<std::shared_ptr<IBeader>>& elementList)
 {
     elements_.insert(elements_.end(), elementList.begin(), elementList.end());
-    std::for_each(elements_.begin(), elements_.end(),
-                  [&](std::shared_ptr<IBeader>& element) {
-                      element->Attach(this);
-                      SPDLOG_INFO(
-                          "Pipeline beaders changed: type={} info={}...",
-                          element->GetType(), element->GetInfo());
-                  });
+    std::for_each(
+        elements_.begin(), elements_.end(),
+        [&](std::shared_ptr<IBeader>& element) {
+            element->Attach(this);
+            SPDLOG_TRACE(
+                "The beader [type={} info={}] attached to pipeline ...",
+                element->GetType(), element->GetInfo());
+        });
     return true;
 }
 
@@ -38,20 +39,15 @@ bool GPPipeline::Insert(const std::shared_ptr<IBeader>& element)
     return true;
 }
 
-bool GPPipeline::Tee(const std::shared_ptr<IBeader>& element)
-{
-    return true;
-}
-
 bool GPPipeline::Run()
 {
-    std::for_each(
-        elements_.begin(), elements_.end(),
-        [&](std::shared_ptr<IBeader>& beader) {
-            if (beader->HasProc()) {
-                threads_.push_back(std::thread(&IBeader::Proc, beader.get()));
-            }
-        });
+    std::for_each(elements_.begin(), elements_.end(),
+                  [&](std::shared_ptr<IBeader>& beader) {
+                      if (beader->HasProc()) {
+                          threads_.emplace_back(
+                              std::thread(&IBeader::Proc, beader.get()));
+                      }
+                  });
 
     return true;
 }
@@ -65,14 +61,14 @@ void GPPipeline::Terminate()
 {
     std::lock_guard<std::mutex> guard(mutex_);
     GPMessage msg = {GPMessageType::ERROR};
-    messages_.push_back(msg);
+    messages_.emplace_back(msg);
     cv_.notify_all();
 }
 
 bool GPPipeline::AddMessage(const GPMessage& msg)
 {
     std::lock_guard<std::mutex> guard(mutex_);
-    messages_.push_back(msg);
+    messages_.emplace_back(msg);
     cv_.notify_all();
     return true;
 }

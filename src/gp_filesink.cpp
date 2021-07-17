@@ -7,7 +7,7 @@ GPFileSink::GPFileSink(std::string filepath) : filepath_(filepath)
     outfile_ = new std::ofstream(filepath);
     SetType(BeaderType::FileSink);
 
-    SPDLOG_INFO("Save file to path: {}", filepath);
+    SPDLOG_TRACE("Save file to path: {}", filepath);
 }
 
 GPFileSink::~GPFileSink()

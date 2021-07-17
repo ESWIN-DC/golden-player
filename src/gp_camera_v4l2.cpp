@@ -38,8 +38,14 @@ GPCameraV4l2::GPCameraV4l2()
         {"YVYU", V4L2_PIX_FMT_YVYU, NvBufferColorFormat_YVYU},
         {"GREY", V4L2_PIX_FMT_GREY, NvBufferColorFormat_GRAY8},
         {"YUV420M", V4L2_PIX_FMT_YUV420M, NvBufferColorFormat_YUV420},
-        {"MJPEG", V4L2_PIX_FMT_MJPEG, NvBufferColorFormat_Invalid},
-        {"unknown", V4L2_PIX_FMT_YUYV, NvBufferColorFormat_Invalid},  // default
+        {"MJPEG", V4L2_PIX_FMT_MJPEG, NvBufferColorFormat_YUV420},
+        {"H264", V4L2_PIX_FMT_H264, NvBufferColorFormat_YUV420},
+        {"H265", V4L2_PIX_FMT_H265, NvBufferColorFormat_YUV420},
+        {"VP8", V4L2_PIX_FMT_VP8, NvBufferColorFormat_YUV420},
+        {"VP9", V4L2_PIX_FMT_VP9, NvBufferColorFormat_YUV420},
+        {"MPEG2", V4L2_PIX_FMT_MPEG2, NvBufferColorFormat_YUV420},
+        {"MPEG4", V4L2_PIX_FMT_MPEG4, NvBufferColorFormat_YUV420},
+        {"unknown", V4L2_PIX_FMT_YUYV, NvBufferColorFormat_YUV420},  // default
     };
 
     set_defaults();
@@ -298,16 +304,15 @@ bool GPCameraV4l2::init_components(v4l2_context_t* ctx)
         ERROR_RETURN("Failed to initialize camera device");
 
     if (!display) {
-        SPDLOG_WARN("No display");
-        return false;
+        SPDLOG_TRACE("No display found");
     }
 
-    if (!display->Initialize(ctx->fps, ctx->enable_cuda, ctx->cam_w,
-                             ctx->cam_h)) {
-        SPDLOG_WARN("Failed to initialize display");
+    if (display && !display->Initialize(ctx->fps, ctx->enable_cuda, ctx->cam_w,
+                                        ctx->cam_h)) {
+        SPDLOG_ERROR("Failed to initialize display");
     }
 
-    INFO("Initialize v4l2 components successfully");
+    SPDLOG_TRACE("Initialize v4l2 components successfully");
     return true;
 }
 
@@ -342,7 +347,7 @@ bool GPCameraV4l2::request_camera_buff(v4l2_context_t* ctx)
         // Enqueue empty v4l2 buff into camera capture plane
         buf.m.fd = (unsigned long)ctx->g_buff[index].dmabuff_fd;
         if (buf.length != ctx->g_buff[index].size) {
-            WARN("Camera v4l2 buf length is not expected");
+            SPDLOG_TRACE("Camera v4l2 buf length is not expected");
             ctx->g_buff[index].size = buf.length;
         }
 
@@ -449,6 +454,7 @@ bool GPCameraV4l2::prepare_buffers(v4l2_context_t* ctx)
 
         input_params.colorFormat =
             get_nvbuff_color_fmt(ctx->cam_pixfmt)->nvbuff_color;
+
         input_params.nvbuf_tag = NvBufferTag_CAMERA;
         if (-1 == NvBufferCreateEx(&fd, &input_params))
             ERROR_RETURN("Failed to create NvBuffer");
@@ -594,7 +600,7 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
 
             if (ctx->cam_pixfmt == V4L2_PIX_FMT_MJPEG) {
                 int fd = 0;
-                uint32_t width, height, pixfmt;
+                uint32_t width, height, pixfmt;  // out parameters
                 unsigned int i = 0;
                 unsigned int eos_search_size = MJPEG_EOS_SEARCH_SIZE;
                 unsigned int bytesused = bufsize;
@@ -612,18 +618,23 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
                     bytesused--;
                 }
 
-                if (!jpeg_decoder ||
-                    jpeg_decoder->decodeToFd(fd, pbuf, bytesused, pixfmt, width,
-                                             height) < 0) {
-                    SPDLOG_ERROR("Cannot decode MJPEG: jpeg_decoder={}",
-                                 reinterpret_cast<intptr_t>(jpeg_decoder));
-                    return false;
+                if (!jpeg_decoder) {
+                    SPDLOG_TRACE("No found MJPEG decoder in this beader.");
                 }
+                else {
+                    if (jpeg_decoder &&
+                        jpeg_decoder->decodeToFd(fd, pbuf, bytesused, pixfmt,
+                                                 width, height) < 0) {
+                        SPDLOG_ERROR("Cannot decode MJPEG: jpeg_decoder={:p}",
+                                     static_cast<void*>(jpeg_decoder));
+                        return false;
+                    }
 
-                // Convert the camera buffer to YUV420P
-                if (-1 ==
-                    NvBufferTransform(fd, ctx->render_dmabuf_fd, &transParams))
-                    ERROR_RETURN("Failed to convert the buffer");
+                    // Convert the camera buffer to YUV420P
+                    if (-1 == NvBufferTransform(fd, ctx->render_dmabuf_fd,
+                                                &transParams))
+                        ERROR_RETURN("Failed to convert the buffer");
+                }
             }
             else if (ctx->cam_pixfmt == V4L2_PIX_FMT_H264 ||
                      ctx->cam_pixfmt == V4L2_PIX_FMT_H265 ||
@@ -707,10 +718,7 @@ int GPCameraV4l2::Proc()
     v4l2_context_t& ctx = ctx_;
     int error = 0;
 
-    //  ./camera_v4l2_cuda -d /dev/video0 -s 640x480 -f YUYV -n 30 -c
-    // CHECK_ERROR(parse_cmdline(&ctx, argc, argv), cleanup,
-    //             "Invalid options specified");
-    // LoadConfiguration();
+    pthread_setname_np(pthread_self(), "GPCameraV4l2::Proc");
 
     CHECK_ERROR(init_components(&ctx), cleanup,
                 "Failed to initialize v4l2 components");

@@ -21,7 +21,7 @@ std::string IBeader::GetName() const
 {
     return name_;
 }
-void IBeader::Link(std::shared_ptr<IBeader> beader)
+void IBeader::Link(const std::shared_ptr<IBeader>& beader)
 {
     std::lock_guard<std::mutex> guard(mutex_);
     if (beader->type_ == BeaderType::Unknown) {
@@ -39,16 +39,17 @@ void IBeader::Link(std::shared_ptr<IBeader> beader)
         return;
     }
 
-    beaders_.push_back(beader);
+    beaders_.emplace_back(beader);
     SPDLOG_TRACE("{} linked the beader type={} info={} ...", GetInfo(),
                  beader->GetType(), beader->GetInfo());
 }
 
-void IBeader::Link(std::vector<std::shared_ptr<IBeader>>& beaders)
+void IBeader::Link(const std::vector<std::shared_ptr<IBeader>>& beaders)
 {
     std::lock_guard<std::mutex> guard(mutex_);
     std::for_each(
-        beaders.begin(), beaders.end(), [&](std::shared_ptr<IBeader>& beader) {
+        beaders.begin(), beaders.end(),
+        [&](const std::shared_ptr<IBeader>& beader) {
             if (beader->type_ == BeaderType::Unknown) {
                 SPDLOG_ERROR("BUGBUG: unkown handler: {}", beader->GetInfo());
             }

@@ -2,7 +2,7 @@ include Rules.mk
 
 TOPTARGETS := all clean install
 
-SUBDIRS := src samples
+SUBDIRS := src examples
 
 $(TOPTARGETS): $(SUBDIRS)
 $(SUBDIRS):

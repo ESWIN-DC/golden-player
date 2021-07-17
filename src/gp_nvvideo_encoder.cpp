@@ -23,15 +23,15 @@ namespace GPlayer {
 
 #define TEST_ERROR(cond, str, label) \
     if (cond) {                      \
-        cerr << str << endl;         \
+        SPDLOG_ERROR(str);           \
         error = 1;                   \
         goto label;                  \
     }
 
-#define TEST_PARSE_ERROR(cond, label)                                     \
-    if (cond) {                                                           \
-        cerr << "Error parsing runtime parameter changes string" << endl; \
-        goto label;                                                       \
+#define TEST_PARSE_ERROR(cond, label)                                   \
+    if (cond) {                                                         \
+        SPDLOG_ERROR("Error parsing runtime parameter changes string"); \
+        goto label;                                                     \
     }
 
 #define IS_DIGIT(c) (c >= '0' && c <= '9')
@@ -57,7 +57,7 @@ void GPNvVideoEncoder::Process(GPData* data)
 {
     std::lock_guard<std::mutex> guard(frames_mutex_);
 
-    frames_.push_back(data);
+    frames_.emplace_back(data);
 
     sem_post(&ctx_->pollthread_sema);
 }
@@ -641,7 +641,7 @@ int GPNvVideoEncoder::encoder_proc_nonblocking(bool eos)
                 if (errno == EAGAIN) {
                     goto check_capture_buffers;
                 }
-                cerr << "ERROR while DQing buffer at output plane" << endl;
+                SPDLOG_ERROR("ERROR while DQing buffer at output plane");
                 Abort();
                 return -1;
             }
@@ -655,7 +655,7 @@ int GPNvVideoEncoder::encoder_proc_nonblocking(bool eos)
             }
             // if (read_video_frame(ctx->in_file, *outplane_buffer) < 0) {
             if (ReadFrame(*outplane_buffer) < 0) {
-                cerr << "Could not read complete frame from input file" << endl;
+                SPDLOG_ERROR("Could not read complete frame from input file");
                 v4l2_output_buf.m.planes[0].bytesused = 0;
                 if (ctx->b_use_enc_cmd) {
                     ret = ctx->enc->setEncoderCommand(V4L2_ENC_CMD_STOP, 1);
