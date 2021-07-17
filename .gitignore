@@ -8,3 +8,4 @@ samples/gplayer-filesrc-h264
 .ccls
 third_party/
 dist/
+build/
