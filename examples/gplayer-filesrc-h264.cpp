@@ -1,15 +1,5 @@
 
-#include <errno.h>
-#include <fcntl.h>
-#include <linux/videodev2.h>
-#include <malloc.h>
-#include <poll.h>
-#include <pthread.h>
 #include <spdlog/common.h>
-#include <string.h>
-#include <unistd.h>
-#include <fstream>
-#include <iostream>
 
 #include "gplayer.h"
 

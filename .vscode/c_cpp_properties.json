@@ -6,7 +6,8 @@
                 "${workspaceFolder}/**"
             ],
             "defines": [],
-            "compilerPath": "/usr/local/bin/arm-none-eabi-gcc"
+            "compilerPath": "/usr/local/bin/arm-none-eabi-gcc",
+            "configurationProvider": "go2sh.cmake-integration"
         }
     ],
     "version": 4
