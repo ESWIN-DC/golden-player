@@ -1,5 +1,6 @@
 #!/bin/bash
 
-find include  src samples -name \*.cpp  -exec clang-format -i {} \;
-find include  src samples -name \*.h  -exec clang-format -i {} \;
+SCRIPT_HOME="$(dirname "$( readlink -m $( type -p ${0} ))")"
 
+cd "${SCRIPT_HOME}/.."
+find src include examples  -type f \( -name \*.h -or -name \*.cpp \)  -exec clang-format -i {} \;
