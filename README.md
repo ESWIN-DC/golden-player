@@ -28,13 +28,13 @@ The next step is to build prerequisities.
 
 ## How to build
 
-Golden player supports cross compilation and native compilation. You must update the environment variables. For to fit your requirements, please change the script text in the "scripts/env.sh".
+Golden player supports cross compilation and native compilation. You must update the environment variables. For to fit your requirements, please modify the script text in the "scripts/env.sh".
 
 ```bash
 source ./scripts/env.sh
 ```
 
-Golden Player supports both make and cmake. The project will deprecate make, so cmake is preferred. The following is the usage of cmake.
+Golden Player supports both make and cmake, but we will deprecate make in the future, and move to cmake. The following is the usage of cmake.
 
 ```bash
 mkdir build
@@ -50,4 +50,20 @@ mkdir build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Release  -DCMAKE_TOOLCHAIN_FILE="../scripts/arm64-cross.cmake" ..
 make -j 8
+```
+
+## Deploy
+
+The default installation directory is "/usr".
+
+```bash
+cd build
+make install
+```
+
+You can change the default installation directory by running the following commands.
+
+```bash
+cd build
+cmake --install . --prefix "your prefix path"
 ```
