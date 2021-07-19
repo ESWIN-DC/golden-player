@@ -1,7 +1,11 @@
 
 cmake_minimum_required(VERSION 3.18)
-project(golden-player LANGUAGES CXX CUDA)
+project(golden-player
+        VERSION 0.1.0
+        LANGUAGES CXX CUDA)
 
+include_directories(${CMAKE_BINARY_DIR})
+configure_file("${CMAKE_SOURCE_DIR}/version.h.in" "${CMAKE_BINARY_DIR}/version.h" @ONLY)
 
 # submodule warning
 message(" ")
@@ -13,8 +17,8 @@ message("           git submodule update --init")
 message("\n")
 
 # setup build flags
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")	# -std=c++17
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")    # -std=c++17
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE")
 set(BUILD_DEPS "YES" CACHE BOOL "If YES, will install dependencies into sandbox.  Automatically reset to NO after dependencies are installed.")
 set(BUILD_INTERACTIVE "YES" CACHE BOOL "If NO, will download/install the default DNN models without prompting the user, and skip installation of PyTorch.")
 set(BUILD_EXPERIMENTAL "NO" CACHE BOOL "If YES, will enable support for experimental DNNs, examples, and plugins")
@@ -25,15 +29,15 @@ set(BUILD_EXPERIMENTAL "NO" CACHE BOOL "If YES, will enable support for experime
 
 # if this is the first time running cmake, perform pre-build dependency install script (or if the user manually triggers re-building the dependencies)
 if( ${BUILD_DEPS} )
-	message("-- Launching pre-build dependency installer script...")
-	message("-- Build interactive:  ${BUILD_INTERACTIVE}")
+    message("-- Launching pre-build dependency installer script...")
+    message("-- Build interactive:  ${BUILD_INTERACTIVE}")
 
-	# execute_process(COMMAND sh ../CMakePreBuild.sh ${BUILD_INTERACTIVE}
-	# 			WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
-	# 			RESULT_VARIABLE PREBUILD_SCRIPT_RESULT)
+    # execute_process(COMMAND sh ../CMakePreBuild.sh ${BUILD_INTERACTIVE}
+    #             WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
+    #             RESULT_VARIABLE PREBUILD_SCRIPT_RESULT)
 
-	set(BUILD_DEPS "NO" CACHE BOOL "If YES, will install dependencies into sandbox.  Automatically reset to NO after dependencies are installed." FORCE)
-	message("-- Finished installing dependencies")
+    set(BUILD_DEPS "NO" CACHE BOOL "If YES, will install dependencies into sandbox.  Automatically reset to NO after dependencies are installed." FORCE)
+    message("-- Finished installing dependencies")
 endif()
 
 
@@ -59,17 +63,19 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_OUTPUT_DIR}/lib)
 
 # Use absolute path for better access from everywhere
 set(THIRDPARTY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
-set(CLASS_DIR ${THIRDPARTY_DIR}/tegra_multimedia_api-R32.2.3/samples/common/classes)
-set(ALGO_CUDA_DIR ${THIRDPARTY_DIR}/tegra_multimedia_api-R32.2.3/samples/common/algorithm/cuda)
-set(ALGO_TRT_DIR ${THIRDPARTY_DIR}/tegra_multimedia_api-R32.2.3/samples/common/algorithm/trt)
+set(CLASS_DIR ${THIRDPARTY_DIR}/tegra_multimedia_api/samples/common/classes)
+set(ALGO_CUDA_DIR ${THIRDPARTY_DIR}/tegra_multimedia_api/samples/common/algorithm/cuda)
+set(ALGO_TRT_DIR ${THIRDPARTY_DIR}/tegra_multimedia_api/samples/common/algorithm/trt)
 
 
 # transfer all headers to the include directory
 file(MAKE_DIRECTORY ${PROJECT_INCLUDE_DIR}/golden-player)
 
-foreach(include ${inferenceIncludes})
-	message("-- Copying ${include}")
-	configure_file(${include} ${PROJECT_INCLUDE_DIR}/golden-player COPYONLY)
+file(GLOB gplayerIncludes include/*.h)
+
+foreach(include ${gplayerIncludes})
+    message("-- Copying ${include}")
+    configure_file(${include} ${PROJECT_INCLUDE_DIR}/golden-player COPYONLY)
 endforeach()
 
 
@@ -79,7 +85,7 @@ add_subdirectory(examples)
 
 
 # install includes
-foreach(include ${inferenceIncludes})
+foreach(include ${gplayerIncludes})
     install(FILES "${include}" DESTINATION include/golden-player)
 endforeach()
 
@@ -88,10 +94,12 @@ install(CODE "execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink ${PROJ
 install(CODE "execute_process( COMMAND ${CMAKE_COMMAND} -E create_symlink ${PROJECT_SOURCE_DIR}/data/images ${CMAKE_INSTALL_PREFIX}/bin/images )" )
 
 # install the shared library
-# install(TARGETS golden-player DESTINATION lib EXPORT jetson-inferenceConfig)
+install(TARGETS golden-player DESTINATION lib EXPORT gplayerConfig)
 
 # install the cmake project, for importing
-# install(EXPORT jetson-inferenceConfig DESTINATION share/golden-player/cmake)
+install(EXPORT gplayerConfig DESTINATION share/golden-player/cmake)
 
 # run ldconfig after installing
-install(CODE "execute_process( COMMAND ldconfig )")
+if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL ${CMAKE_HOST_SYSTEM_PROCESSOR})
+    install(CODE "execute_process( COMMAND ldconfig )")
+endif()
