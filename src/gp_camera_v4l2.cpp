@@ -307,8 +307,8 @@ bool GPCameraV4l2::init_components(v4l2_context_t* ctx)
         SPDLOG_TRACE("No display found");
     }
 
-    if (display && !display->Initialize(ctx->fps, ctx->enable_cuda, ctx->cam_w,
-                                        ctx->cam_h)) {
+    if (display && !display->Initialize(ctx->fps, ctx->enable_cuda, 0, 0,
+                                        ctx->cam_w, ctx->cam_h)) {
         SPDLOG_ERROR("Failed to initialize display");
     }
 
@@ -678,7 +678,7 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
 
             // Display the camera buffer
             if (display) {
-                display->Display(ctx->enable_cuda, ctx->render_dmabuf_fd);
+                display->Display(ctx->render_dmabuf_fd);
             }
 
             // Enqueue camera buff

@@ -295,8 +295,7 @@ bool GPNvVideoDecoder::conv0_capture_dqbuf_thread_callback(
     GPNvVideoDecoder* decoder = static_cast<GPNvVideoDecoder*>(arg);
     VideoDecodeContext_T* ctx =
         static_cast<VideoDecodeContext_T*>(decoder->ctx_.get());
-    GPDisplayEGL* display = dynamic_cast<GPDisplayEGL*>(
-        decoder->GetChild(BeaderType::EGLDisplaySink).get());
+    auto displays = decoder->GetChildren(BeaderType::EGLDisplaySink);
 
     if (!v4l2_buf) {
         SPDLOG_ERROR("Error while dequeueing conv capture plane buffer");
@@ -314,8 +313,12 @@ bool GPNvVideoDecoder::conv0_capture_dqbuf_thread_callback(
         // write_video_frame(ctx->out_file, *buffer);
     }
 
-    if (!ctx->stats && display) {
-        display->Display(false, buffer->planes[0].fd);
+    if (!ctx->stats && displays.size() > 0) {
+        std::for_each(
+            displays.begin(), displays.end(), [&](std::shared_ptr<IBeader>& a) {
+                GPDisplayEGL* display = dynamic_cast<GPDisplayEGL*>(a.get());
+                display->Display(buffer->planes[0].fd);
+            });
     }
 
     if (ctx->conv->capture_plane.qBuffer(*v4l2_buf, NULL) < 0) {
@@ -526,29 +529,30 @@ void GPNvVideoDecoder::query_and_set_capture()
     if (display) {
         // Destroy the old instance of renderer as resolution might have changed
         // delete ctx_->renderer;
+        //
+        // if (ctx_->fullscreen) {
+        //     // Required for fullscreen
+        //     window_width = window_height = 0;
+        // }
+        // else if (ctx_->window_width && ctx_->window_height) {
+        //     // As specified by user on commandline
+        //     window_width = ctx_->window_width;
+        //     window_height = ctx_->window_height;
+        // }
+        // else {
+        //     // Resolution got from the decoder
+        //     window_width = crop.c.width;
+        //     window_height = crop.c.height;
+        // }
 
-        if (ctx_->fullscreen) {
-            // Required for fullscreen
-            window_width = window_height = 0;
-        }
-        else if (ctx_->window_width && ctx_->window_height) {
-            // As specified by user on commandline
-            window_width = ctx_->window_width;
-            window_height = ctx_->window_height;
-        }
-        else {
-            // Resolution got from the decoder
-            window_width = crop.c.width;
-            window_height = crop.c.height;
-        }
-
-        bool renderer_error =
-            display->Initialize(ctx_->fps, true, window_width, window_height,
-                                ctx_->window_x, ctx_->window_y);
-        TEST_ERROR(!renderer_error,
-                   "Error in setting up renderer. "
-                   "Check if X is running or run with --disable-rendering",
-                   error);
+        // bool renderer_error =
+        //     display->Initialize(ctx_->fps, true, ctx_->window_x,
+        //     ctx_->window_y,
+        //                         window_width, window_height);
+        // TEST_ERROR(!renderer_error,
+        //            "Error in setting up renderer. "
+        //            "Check if X is running or run with --disable-rendering",
+        //            error);
 
         if (ctx_->stats) {
             display->enableProfiling();
@@ -895,7 +899,7 @@ void* GPNvVideoDecoder::dec_capture_loop_fcn()
                 if (ctx->capture_plane_mem_type == V4L2_MEMORY_DMABUF)
                     dec_buffer->planes[0].fd = ctx->dmabuff_fd[v4l2_buf.index];
                 // ctx->renderer->render(dec_buffer->planes[0].fd);
-                display->Display(false, dec_buffer->planes[0].fd);
+                display->Display(dec_buffer->planes[0].fd);
             }
 
             // If we need to write to file or display the buffer,
@@ -979,7 +983,7 @@ void* GPNvVideoDecoder::dec_capture_loop_fcn()
                     }
 
                     if (!ctx->stats && display) {
-                        display->Display(false, ctx->dst_dma_fd);
+                        display->Display(ctx->dst_dma_fd);
                     }
 
                     // Not writing to file
@@ -1304,8 +1308,7 @@ bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos)
                         ctx_->dmabuff_fd[v4l2_capture_buf.index];
                 // cout << "Enqueue the buffer to renderer " <<
                 // capture_buffer->planes[0].fd << endl;
-                if (display->Display(false, capture_buffer->planes[0].fd) ==
-                    -1) {
+                if (display->Display(capture_buffer->planes[0].fd) == -1) {
                     Abort();
                     SPDLOG_ERROR("Error while queueing buffer for rendering ");
                     break;
@@ -1369,7 +1372,7 @@ bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos)
                 // }
 
                 if (!ctx_->stats && display) {
-                    display->Display(false, ctx_->dst_dma_fd);
+                    display->Display(ctx_->dst_dma_fd);
                 }
                 // Queue the buffer back once it has been used.
                 // If we are not rendering, queue the buffer back here

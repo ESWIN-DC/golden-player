@@ -131,6 +131,23 @@ std::shared_ptr<IBeader> IBeader::GetChild(BeaderType type)
     return nullptr;
 }
 
+std::vector<std::shared_ptr<IBeader>> IBeader::GetChildren(BeaderType type)
+{
+    std::vector<std::shared_ptr<IBeader>> beaders;
+    std::lock_guard<std::recursive_mutex> guard(mutex_);
+    for (auto it = child_beaders_.begin(); it != child_beaders_.end(); ++it) {
+        if ((*it)->type_ == type) {
+            // SPDLOG_TRACE("Found child beader [type = {}] for beader [{}].",
+            //              (*it)->type_, type_);
+            beaders.emplace_back(*it);
+        }
+    }
+
+    SPDLOG_TRACE("found {} beaders [type = {}] in beader [{}].", beaders.size(),
+                 type_);
+    return beaders;
+}
+
 bool IBeader::HasChild(const IBeader& beader)
 {
     std::lock_guard<std::recursive_mutex> guard(mutex_);

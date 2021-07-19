@@ -24,7 +24,8 @@
 
 namespace GPlayer {
 
-GPDisplayEGL::GPDisplayEGL() : egl_display_(EGL_NO_DISPLAY)
+GPDisplayEGL::GPDisplayEGL()
+    : conv_(nullptr), renderer_(nullptr), egl_display_(EGL_NO_DISPLAY)
 {
     SetProperties("GPDisplayEGL", "GPDisplayEGL", BeaderType::EGLDisplaySink,
                   true);
@@ -40,9 +41,9 @@ std::string GPDisplayEGL::GetInfo() const
     return "GPDisplayEGL";
 }
 
-int GPDisplayEGL::Display(bool enable_cuda, int dmabuf_fd)
+int GPDisplayEGL::Display(int dmabuf_fd)
 {
-    if (enable_cuda) {
+    if (enable_cuda_) {
         // Create EGLImage from dmabuf fd
         EGLImageKHR egl_image = NvEGLImageFromFd(egl_display_, dmabuf_fd);
         if (egl_image == NULL) {
@@ -73,12 +74,20 @@ void GPDisplayEGL::printProfilingStats()
 
 bool GPDisplayEGL::Initialize(int fps,
                               bool enable_cuda,
-                              uint32_t width,
-                              uint32_t height,
                               uint32_t x,
-                              uint32_t y)
+                              uint32_t y,
+                              uint32_t width,
+                              uint32_t height)
 {
-    // Create EGL renderer
+    if (conv_) {
+        delete conv_;
+    }
+    if (renderer_) {
+        delete renderer_;
+    }
+    if (egl_display_ != EGL_NO_DISPLAY && !eglTerminate(egl_display_))
+        SPDLOG_ERROR("Failed to terminate EGL display connection\n");
+
     renderer_ =
         NvEglRenderer::createEglRenderer("renderer0", width, height, x, y);
     if (!renderer_)
@@ -96,23 +105,24 @@ bool GPDisplayEGL::Initialize(int fps,
             ERROR_RETURN("Failed to initialize EGL display connection");
     }
 
+    fps_ = fps;
+    enable_cuda_ = enable_cuda;
+    x_ = x;
+    y_ = y;
+    width_ = width;
+    height_ = height;
+
     return true;
-}
-
-EGLImageKHR GPDisplayEGL::GetImage(int fd)
-{
-    EGLImageKHR egl_image = NvEGLImageFromFd(egl_display_, fd);
-    if (egl_image == NULL)
-        SPDLOG_ERROR("Failed to map dmabuf fd (0x{0:X}) to EGLImage", fd);
-
-    return egl_image;
 }
 
 void GPDisplayEGL::Terminate()
 {
-    // Terminate EGL display
-    if (egl_display_ && !eglTerminate(egl_display_))
+    if (egl_display_ != EGL_NO_DISPLAY && !eglTerminate(egl_display_))
         SPDLOG_ERROR("Failed to terminate EGL display connection\n");
+
+    if (renderer_) {
+        delete renderer_;
+    }
 }
 
 }  // namespace GPlayer
