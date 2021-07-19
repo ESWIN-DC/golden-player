@@ -26,27 +26,25 @@ public:
     bool HasProc() override { return false; };
     bool Initialize(int fps,
                     bool enable_cuda,
-                    uint32_t width,
-                    uint32_t height,
                     uint32_t x = 0,
-                    uint32_t y = 0);
+                    uint32_t y = 0,
+                    uint32_t width = 640,
+                    uint32_t height = 480);
     void Terminate();
-    int Display(bool enable_cuda, int dmabuf_fd);
+    int Display(int dmabuf_fd);
     void enableProfiling();
     void printProfilingStats();
 
 public:
-    EGLImageKHR GetImage(int fd);
-
 private:
+    double fps_ = 0.0;
+    bool enable_cuda_ = false;
+    uint32_t x_ = 0, y_ = 0;
+    uint32_t width_ = 0, height_ = 0;
+
     NvVideoConverter* conv_;
     NvEglRenderer* renderer_;
-
-    // CUDA processing
-    // bool enable_cuda;
     EGLDisplay egl_display_;
-
-    std::vector<IBeader*> handlers_;
 
     bool enable_osd;
     bool enable_osd_text;
