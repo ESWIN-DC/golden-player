@@ -46,7 +46,6 @@ add_library(golden-player STATIC
     gp_nvvideo_encoder.cpp
     camera_recorder.cpp
     gp_camera_v4l2.cpp
-    display.cpp
     gp_display_egl.cpp
     gp_filesink.cpp
     gp_filesrc.cpp

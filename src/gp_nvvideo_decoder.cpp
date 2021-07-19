@@ -895,7 +895,7 @@ void* GPNvVideoDecoder::dec_capture_loop_fcn()
                 if (ctx->capture_plane_mem_type == V4L2_MEMORY_DMABUF)
                     dec_buffer->planes[0].fd = ctx->dmabuff_fd[v4l2_buf.index];
                 // ctx->renderer->render(dec_buffer->planes[0].fd);
-                // display->Display(dec_buffer->planes[0].fd);
+                display->Display(false, dec_buffer->planes[0].fd);
             }
 
             // If we need to write to file or display the buffer,
