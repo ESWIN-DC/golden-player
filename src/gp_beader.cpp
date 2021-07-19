@@ -121,8 +121,8 @@ std::shared_ptr<IBeader> IBeader::GetChild(BeaderType type)
     std::lock_guard<std::recursive_mutex> guard(mutex_);
     for (auto it = child_beaders_.begin(); it != child_beaders_.end(); ++it) {
         if ((*it)->type_ == type) {
-            SPDLOG_TRACE("Found child beader [type = {}] for beader [{}].",
-                         (*it)->type_, type_);
+            // SPDLOG_TRACE("Found child beader [type = {}] for beader [{}].",
+            //              (*it)->type_, type_);
             return *it;
         }
     }
@@ -131,11 +131,11 @@ std::shared_ptr<IBeader> IBeader::GetChild(BeaderType type)
     return nullptr;
 }
 
-bool IBeader::IsChild(const std::shared_ptr<IBeader>& beader)
+bool IBeader::HasChild(const IBeader& beader)
 {
     std::lock_guard<std::recursive_mutex> guard(mutex_);
     for (auto it = child_beaders_.begin(); it != child_beaders_.end(); ++it) {
-        if ((*it) == beader) {
+        if ((*it).get() == &beader) {
             SPDLOG_TRACE("Found child beader [type = {}] for beader [{}].",
                          (*it)->type_, type_);
             return true;
@@ -143,8 +143,16 @@ bool IBeader::IsChild(const std::shared_ptr<IBeader>& beader)
     }
 
     SPDLOG_TRACE("No found child beader [type = {}] in beader [{}].",
-                 beader->type_, type_);
+                 beader.type_, type_);
     return false;
+}
+
+std::shared_ptr<IBeader> IBeader::FindParent(BeaderType type)
+{
+    if (pipeline_) {
+        return pipeline_->FindBeaderParent(*this, type);
+    }
+    return nullptr;
 }
 
 bool IBeader::Attach(GPPipeline* pipeline)

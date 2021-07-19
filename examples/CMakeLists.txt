@@ -1,5 +1,5 @@
 
-set(ARGUS_UTILS_DIR ${THIRDPARTY_DIR}/tegra_multimedia_api-R32.2.3/argus/samples/utils)
+set(ARGUS_UTILS_DIR ${THIRDPARTY_DIR}/tegra_multimedia_api/argus/samples/utils)
 set(CUDA_PATH /usr/local/cuda)
 
 set(TEGRA_ARMABI aarch64-linux-gnu)
@@ -11,9 +11,9 @@ include_directories(
     ../include
 	"${THIRDPARTY_DIR}/spdlog/include" 
 	"${THIRDPARTY_DIR}/json/include" 
-	"${THIRDPARTY_DIR}/tegra_multimedia_api-R32.2.3/include"
-    "${THIRDPARTY_DIR}/tegra_multimedia_api-R32.2.3/argus/include"
-	"${THIRDPARTY_DIR}/tegra_multimedia_api-R32.2.3/include/libjpeg-8b" 
+	"${THIRDPARTY_DIR}/tegra_multimedia_api/include"
+    "${THIRDPARTY_DIR}/tegra_multimedia_api/argus/include"
+	"${THIRDPARTY_DIR}/tegra_multimedia_api/include/libjpeg-8b" 
 	"${ALGO_CUDA_DIR}" 
 	"${ALGO_TRT_DIR}"
     "${ARGUS_UTILS_DIR}"
@@ -79,7 +79,7 @@ target_link_libraries(gplayer-mjpeg
 	nvargus_socketclient)
 
 add_executable(gplayer-filesrc-h264
-    gplayer-mjpeg.cpp)
+    gplayer-filesrc-h264.cpp)
 
 target_link_libraries(gplayer-filesrc-h264
     golden-player

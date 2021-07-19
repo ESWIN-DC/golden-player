@@ -18,7 +18,7 @@ message("\n")
 
 # setup build flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")    # -std=c++17
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE")
 set(BUILD_DEPS "YES" CACHE BOOL "If YES, will install dependencies into sandbox.  Automatically reset to NO after dependencies are installed.")
 set(BUILD_INTERACTIVE "YES" CACHE BOOL "If NO, will download/install the default DNN models without prompting the user, and skip installation of PyTorch.")
 set(BUILD_EXPERIMENTAL "NO" CACHE BOOL "If YES, will enable support for experimental DNNs, examples, and plugins")
@@ -63,9 +63,9 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_OUTPUT_DIR}/lib)
 
 # Use absolute path for better access from everywhere
 set(THIRDPARTY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
-set(CLASS_DIR ${THIRDPARTY_DIR}/tegra_multimedia_api-R32.2.3/samples/common/classes)
-set(ALGO_CUDA_DIR ${THIRDPARTY_DIR}/tegra_multimedia_api-R32.2.3/samples/common/algorithm/cuda)
-set(ALGO_TRT_DIR ${THIRDPARTY_DIR}/tegra_multimedia_api-R32.2.3/samples/common/algorithm/trt)
+set(CLASS_DIR ${THIRDPARTY_DIR}/tegra_multimedia_api/samples/common/classes)
+set(ALGO_CUDA_DIR ${THIRDPARTY_DIR}/tegra_multimedia_api/samples/common/algorithm/cuda)
+set(ALGO_TRT_DIR ${THIRDPARTY_DIR}/tegra_multimedia_api/samples/common/algorithm/trt)
 
 
 # transfer all headers to the include directory

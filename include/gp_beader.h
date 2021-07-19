@@ -41,7 +41,8 @@ public:
     virtual void Unlink(IBeader* beader) final;
     virtual void Unlink(BeaderType type) final;
     virtual std::shared_ptr<IBeader> GetChild(BeaderType type) final;
-    virtual bool IsChild(const std::shared_ptr<IBeader>& beader) final;
+    virtual bool HasChild(const IBeader& beader) final;
+    virtual std::shared_ptr<IBeader> FindParent(BeaderType type) final;
     virtual bool Attach(GPPipeline* pipeline) final;
     virtual bool HasProc() = 0;
     virtual int Proc();
