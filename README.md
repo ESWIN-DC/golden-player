@@ -40,7 +40,7 @@ The upward script needs a target "TARGET_ROOTFS", which is the jetson system ima
 
 ### 3. Build
 
-Golden Player supports both make and cmake, but we will deprecate make in the future, and move to cmake. The following is the usage of cmake.
+Golden Player supports both make and cmake, but we will deprecate make and move to cmake in the future. The following is the usage of cmake.
 
 ```bash
 mkdir build

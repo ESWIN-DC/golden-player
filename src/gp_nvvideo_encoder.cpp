@@ -1010,10 +1010,6 @@ int GPNvVideoEncoder::Proc()
 
     set_defaults();
 
-    // video_encode <in-file> <in-width> <in-height> <encoder-type> <out-file>
-    // ret = parse_csv_args(ctx_.get(), 6, argv);
-    // TEST_ERROR(ret < 0, "Error parsing commandline arguments", cleanup);
-
     LoadConfiguration();
 
     pthread_setname_np(pthread_self(), "EncOutPlane");
@@ -1033,14 +1029,6 @@ int GPNvVideoEncoder::Proc()
         ctx->pBitStreamCrc = InitCrc(CRC32_POLYNOMIAL);
         TEST_ERROR(!ctx->pBitStreamCrc, "InitCrc failed", cleanup);
     }
-
-    // ctx->in_file = new ifstream(ctx->in_file_path);
-    // TEST_ERROR(!ctx->in_file->is_open(), "Could not open input file",
-    // cleanup);
-
-    // ctx->out_file = new ofstream(ctx->out_file_path);
-    // TEST_ERROR(!ctx->out_file->is_open(), "Could not open output file",
-    //            cleanup);
 
     if (ctx->ROI_Param_file_path) {
         ctx->roi_Param_file = new ifstream(ctx->ROI_Param_file_path);
@@ -1620,8 +1608,6 @@ cleanup:
     }
 
     delete ctx->enc;
-    // delete ctx->in_file;
-    // delete ctx->out_file;
     delete ctx->roi_Param_file;
     delete ctx->recon_Ref_file;
     delete ctx->rps_Param_file;
@@ -1629,8 +1615,6 @@ cleanup:
     delete ctx->gdr_Param_file;
     delete ctx->gdr_out_file;
 
-    // free(ctx->in_file_path);
-    // free(ctx->out_file_path);
     free(ctx->ROI_Param_file_path);
     free(ctx->Recon_Ref_file_path);
     free(ctx->RPS_Param_file_path);

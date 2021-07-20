@@ -13,6 +13,7 @@ namespace GPlayer {
 
 enum class BeaderType {
     Unknown = 0,
+    SocketServerSrc,
     CameraV4l2Src,
     FileSrc,
     FileSink,
