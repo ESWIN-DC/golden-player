@@ -17,14 +17,14 @@ namespace GPlayer {
 class Display {
 };
 
-class GPDisplayEGL : public IBeader {
+class GPDisplayEGLSink : public IBeader {
 public:
-    GPDisplayEGL();
-    ~GPDisplayEGL();
+    GPDisplayEGLSink();
+    ~GPDisplayEGLSink();
 
     std::string GetInfo() const override;
     bool HasProc() override { return false; };
-    bool Initialize(int fps,
+    bool Initialize(double fps,
                     bool enable_cuda,
                     uint32_t x = 0,
                     uint32_t y = 0,

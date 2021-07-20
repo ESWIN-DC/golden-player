@@ -79,14 +79,9 @@ typedef struct : public context_t {
 } VideoDecodeContext_T;
 
 class GPNvVideoDecoder : public IBeader {
-private:
-    GPNvVideoDecoder();
-
 public:
-    explicit GPNvVideoDecoder(
-        const std::shared_ptr<VideoDecodeContext_T> context);
+    explicit GPNvVideoDecoder();
     ~GPNvVideoDecoder();
-
     std::string GetInfo() const override;
     void Process(GPData* data);
     int Proc() override;
@@ -119,9 +114,13 @@ private:
     bool decoder_proc_nonblocking(bool eos);
     bool decoder_proc_blocking(bool eos);
     void ProcessData();
+    void Display(int fd);
+    void PrintProfilingStats();
 
 private:
-    std::shared_ptr<VideoDecodeContext_T> ctx_;
+    std::vector<std::weak_ptr<GPDisplayEGLSink>> display_sinks_;
+    std::weak_ptr<GPFileSrc> file_src_;
+    VideoDecodeContext_T* ctx_ = nullptr;
     std::thread decoder_poll_thread_;
     std::thread dec_capture_loop_;
     gp_circular_buffer<uint8_t> buffer_;

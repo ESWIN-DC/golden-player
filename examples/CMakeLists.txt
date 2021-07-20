@@ -102,6 +102,19 @@ target_link_libraries(gplayer-multiple-display
 	nvinfer nvparsers
     spdlog
 	nveglstream_camconsumer
-	nvargus_socketclient)	
+	nvargus_socketclient)
+
+add_executable(gplayer-multiple-filesrc
+    gplayer-multiple-filesrc.cpp)
+
+target_link_libraries(gplayer-multiple-filesrc
+    golden-player
+    pthread v4l2 EGL GLESv2 X11
+	nvbuf_utils nvjpeg nvosd drm
+	cuda cudart
+	nvinfer nvparsers
+    spdlog
+	nveglstream_camconsumer
+	nvargus_socketclient)
 
 install(TARGETS gplayer DESTINATION bin)

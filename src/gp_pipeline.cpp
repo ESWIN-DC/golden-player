@@ -17,6 +17,7 @@ GPPipeline::~GPPipeline()
 bool GPPipeline::Add(const std::shared_ptr<IBeader>& element)
 {
     elements_.emplace_back(element);
+    element->Attach(this);
     return true;
 }
 

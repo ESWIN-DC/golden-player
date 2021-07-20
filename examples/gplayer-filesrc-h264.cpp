@@ -8,14 +8,12 @@ using namespace GPlayer;
 int main(int argc, char* argv[])
 {
     spdlog::set_level(spdlog::level::trace);
-
     int ret = 0;
-    std::shared_ptr<VideoDecodeContext_T> dcontext =
-        std::make_shared<VideoDecodeContext_T>();
 
     std::shared_ptr<GPNvVideoDecoder> nvvideodecoder =
-        std::make_shared<GPNvVideoDecoder>(dcontext);
-    std::shared_ptr<GPDisplayEGL> egl = std::make_shared<GPDisplayEGL>();
+        std::make_shared<GPNvVideoDecoder>();
+    std::shared_ptr<GPDisplayEGLSink> egl =
+        std::make_shared<GPDisplayEGLSink>();
     std::shared_ptr<GPFileSrc> h264fileSrc = std::make_shared<GPFileSrc>(
         std::string("sample_outdoor_car_1080p_10fps.h264"));
     std::shared_ptr<GPFileSink> h264file =

@@ -43,6 +43,7 @@ add_library(golden-player STATIC
     video_decode_context.cpp
     video_encode_context.cpp
     gp_nvvideo_decoder.cpp
+    gp_video_decoder_group.cpp
     gp_nvvideo_encoder.cpp
     camera_recorder.cpp
     gp_camera_v4l2.cpp

@@ -24,24 +24,24 @@
 
 namespace GPlayer {
 
-GPDisplayEGL::GPDisplayEGL()
+GPDisplayEGLSink::GPDisplayEGLSink()
     : conv_(nullptr), renderer_(nullptr), egl_display_(EGL_NO_DISPLAY)
 {
-    SetProperties("GPDisplayEGL", "GPDisplayEGL", BeaderType::EGLDisplaySink,
-                  true);
+    SetProperties("GPDisplayEGLSink", "GPDisplayEGLSink",
+                  BeaderType::EGLDisplaySink, true);
 }
 
-GPDisplayEGL::~GPDisplayEGL()
+GPDisplayEGLSink::~GPDisplayEGLSink()
 {
     Terminate();
 }
 
-std::string GPDisplayEGL::GetInfo() const
+std::string GPDisplayEGLSink::GetInfo() const
 {
-    return "GPDisplayEGL";
+    return "GPDisplayEGLSink";
 }
 
-int GPDisplayEGL::Display(int dmabuf_fd)
+int GPDisplayEGLSink::Display(int dmabuf_fd)
 {
     if (enable_cuda_) {
         // Create EGLImage from dmabuf fd
@@ -62,22 +62,22 @@ int GPDisplayEGL::Display(int dmabuf_fd)
     return renderer_->render(dmabuf_fd);
 }
 
-void GPDisplayEGL::enableProfiling()
+void GPDisplayEGLSink::enableProfiling()
 {
     renderer_->enableProfiling();
 }
 
-void GPDisplayEGL::printProfilingStats()
+void GPDisplayEGLSink::printProfilingStats()
 {
     renderer_->printProfilingStats();
 }
 
-bool GPDisplayEGL::Initialize(int fps,
-                              bool enable_cuda,
-                              uint32_t x,
-                              uint32_t y,
-                              uint32_t width,
-                              uint32_t height)
+bool GPDisplayEGLSink::Initialize(double fps,
+                                  bool enable_cuda,
+                                  uint32_t x,
+                                  uint32_t y,
+                                  uint32_t width,
+                                  uint32_t height)
 {
     if (conv_) {
         delete conv_;
@@ -115,7 +115,7 @@ bool GPDisplayEGL::Initialize(int fps,
     return true;
 }
 
-void GPDisplayEGL::Terminate()
+void GPDisplayEGLSink::Terminate()
 {
     if (egl_display_ != EGL_NO_DISPLAY && !eglTerminate(egl_display_))
         SPDLOG_ERROR("Failed to terminate EGL display connection\n");
