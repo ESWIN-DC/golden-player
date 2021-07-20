@@ -16,7 +16,8 @@ int main(int argc, char* argv[])
     std::shared_ptr<GPNvJpegDecoder> nvjpegdecoder =
         std::make_shared<GPNvJpegDecoder>();
     std::shared_ptr<GPCameraV4l2> v4l2 = std::make_shared<GPCameraV4l2>();
-    std::shared_ptr<GPDisplayEGL> egl = std::make_shared<GPDisplayEGL>();
+    std::shared_ptr<GPDisplayEGLSink> egl =
+        std::make_shared<GPDisplayEGLSink>();
     std::shared_ptr<GPFileSink> mjpegfile =
         std::make_shared<GPFileSink>(std::string("try001.mjpeg"));
 

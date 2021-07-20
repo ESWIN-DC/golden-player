@@ -56,19 +56,31 @@ const uint32_t CHUNK_SIZE = 400000L;
 
 #define GET_H265_NAL_UNIT_TYPE(buffer_ptr) ((buffer_ptr[0] & 0x7E) >> 1)
 
-GPNvVideoDecoder::GPNvVideoDecoder(
-    const std::shared_ptr<VideoDecodeContext_T> context)
+GPNvVideoDecoder::GPNvVideoDecoder()
     : buffer_(CHUNK_SIZE * 16), pollthread_sema_(0), decoderthread_sema_(0)
 {
-    ctx_ = context;
-    SetProperties("", "", BeaderType::NvVideoDecoder);
+    ctx_ = new VideoDecodeContext_T;
+    SetProperties("GPNvVideoDecoder", "GPNvVideoDecoder",
+                  BeaderType::NvVideoDecoder);
 }
 
-GPNvVideoDecoder::~GPNvVideoDecoder() {}
+GPNvVideoDecoder::~GPNvVideoDecoder()
+{
+    if (ctx_) {
+        delete ctx_;
+    }
+
+    if (ctx_->blocking_mode) {
+        dec_capture_loop_.join();
+    }
+    else {
+        decoder_poll_thread_.join();
+    }
+}
 
 std::string GPNvVideoDecoder::GetInfo() const
 {
-    return "NvVideoDecoder";
+    return "GPNvVideoDecoder";
 }
 
 void GPNvVideoDecoder::Process(GPData* data)
@@ -94,7 +106,7 @@ int GPNvVideoDecoder::read_decoder_input_nalu(NvBuffer* buffer)
     bool nalu_found = false;
 
     if (buffer_.size() == 0) {
-        SPDLOG_TRACE("No buffers in the {}", GetName());
+        SPDLOG_TRACE("No buffers in the {}", GetInfo());
         buffer->planes[0].bytesused = 0;
         return 0;
     }
@@ -162,10 +174,7 @@ int GPNvVideoDecoder::read_decoder_input_chunk(NvBuffer* buffer)
 {
     // std::lock_guard<std::mutex> lk(buffer_lock_);
 
-    GPFileSrc* file_src =
-        dynamic_cast<GPFileSrc*>(FindParent(BeaderType::FileSrc).get());
-
-    std::streamsize bytes_read;
+    std::streamsize bytes_read = 0;
     std::streamsize bytes_to_read =
         std::min(CHUNK_SIZE, buffer->planes[0].length);
 #if 0
@@ -179,12 +188,14 @@ int GPNvVideoDecoder::read_decoder_input_chunk(NvBuffer* buffer)
     return buffer->planes[0].bytesused;
 #endif
 
-    std::basic_istream<char>& stream = file_src->Read(
-        reinterpret_cast<char*>(buffer->planes[0].data), bytes_to_read);
-    bytes_read = stream.gcount();
-    if (bytes_read == 0) {
-        // stream.clear();
-        // stream.seekg(0, stream.beg);
+    if (auto file_src = file_src_.lock()) {
+        std::basic_istream<char>& stream = file_src->Read(
+            reinterpret_cast<char*>(buffer->planes[0].data), bytes_to_read);
+        bytes_read = stream.gcount();
+        if (bytes_read == 0) {
+            // stream.clear();
+            // stream.seekg(0, stream.beg);
+        }
     }
     buffer->planes[0].bytesused = bytes_read;
     return bytes_read;
@@ -245,8 +256,7 @@ bool GPNvVideoDecoder::conv0_output_dqbuf_thread_callback(
     void* arg)
 {
     GPNvVideoDecoder* decoder = static_cast<GPNvVideoDecoder*>(arg);
-    VideoDecodeContext_T* ctx =
-        static_cast<VideoDecodeContext_T*>(decoder->ctx_.get());
+    VideoDecodeContext_T* ctx = decoder->ctx_;
     struct v4l2_buffer dec_capture_ret_buffer;
     struct v4l2_plane planes[MAX_PLANES];
 
@@ -293,9 +303,8 @@ bool GPNvVideoDecoder::conv0_capture_dqbuf_thread_callback(
     void* arg)
 {
     GPNvVideoDecoder* decoder = static_cast<GPNvVideoDecoder*>(arg);
-    VideoDecodeContext_T* ctx =
-        static_cast<VideoDecodeContext_T*>(decoder->ctx_.get());
-    auto displays = decoder->GetChildren(BeaderType::EGLDisplaySink);
+    VideoDecodeContext_T* ctx = decoder->ctx_;
+    auto displays = decoder->display_sinks_;
 
     if (!v4l2_buf) {
         SPDLOG_ERROR("Error while dequeueing conv capture plane buffer");
@@ -314,11 +323,12 @@ bool GPNvVideoDecoder::conv0_capture_dqbuf_thread_callback(
     }
 
     if (!ctx->stats && displays.size() > 0) {
-        std::for_each(
-            displays.begin(), displays.end(), [&](std::shared_ptr<IBeader>& a) {
-                GPDisplayEGL* display = dynamic_cast<GPDisplayEGL*>(a.get());
-                display->Display(buffer->planes[0].fd);
-            });
+        std::for_each(displays.begin(), displays.end(),
+                      [&](std::weak_ptr<GPDisplayEGLSink>& a) {
+                          if (auto display = a.lock()) {
+                              display->Display(buffer->planes[0].fd);
+                          }
+                      });
     }
 
     if (ctx->conv->capture_plane.qBuffer(*v4l2_buf, NULL) < 0) {
@@ -464,13 +474,10 @@ void GPNvVideoDecoder::query_and_set_capture()
     int32_t min_dec_capture_buffers;
     int ret = 0;
     int error = 0;
-    uint32_t window_width;
-    uint32_t window_height;
     NvBufferCreateParams input_params = {0};
     NvBufferCreateParams cParams = {0};
 
-    GPDisplayEGL* display =
-        dynamic_cast<GPDisplayEGL*>(GetChild(BeaderType::EGLDisplaySink).get());
+    auto displays = display_sinks_;
 
     // Get capture plane format from the decoder. This may change after
     // an resolution change event
@@ -526,38 +533,7 @@ void GPNvVideoDecoder::query_and_set_capture()
         }
     }
 
-    if (display) {
-        // Destroy the old instance of renderer as resolution might have changed
-        // delete ctx_->renderer;
-        //
-        // if (ctx_->fullscreen) {
-        //     // Required for fullscreen
-        //     window_width = window_height = 0;
-        // }
-        // else if (ctx_->window_width && ctx_->window_height) {
-        //     // As specified by user on commandline
-        //     window_width = ctx_->window_width;
-        //     window_height = ctx_->window_height;
-        // }
-        // else {
-        //     // Resolution got from the decoder
-        //     window_width = crop.c.width;
-        //     window_height = crop.c.height;
-        // }
-
-        // bool renderer_error =
-        //     display->Initialize(ctx_->fps, true, ctx_->window_x,
-        //     ctx_->window_y,
-        //                         window_width, window_height);
-        // TEST_ERROR(!renderer_error,
-        //            "Error in setting up renderer. "
-        //            "Check if X is running or run with --disable-rendering",
-        //            error);
-
-        if (ctx_->stats) {
-            display->enableProfiling();
-        }
-    }
+    // EnableProfiling();
 
     // deinitPlane unmaps the buffers and calls REQBUFS with count 0
     dec->capture_plane.deinitPlane();
@@ -765,11 +741,11 @@ error:
         Abort();
         SPDLOG_ERROR("Error in {}", __func__);
     }
-}
+}  // namespace GPlayer
 
 void* GPNvVideoDecoder::decoder_pollthread_fcn()
 {
-    VideoDecodeContext_T* ctx = ctx_.get();
+    VideoDecodeContext_T* ctx = ctx_;
     v4l2_ctrl_video_device_poll devicepoll;
 
     pthread_setname_np(pthread_self(), "DecoderDevicePoll");
@@ -809,12 +785,10 @@ void* GPNvVideoDecoder::decoder_pollthread_fcn()
 
 void* GPNvVideoDecoder::dec_capture_loop_fcn()
 {
-    VideoDecodeContext_T* ctx = ctx_.get();
+    VideoDecodeContext_T* ctx = ctx_;
     NvVideoDecoder* dec = ctx->dec;
     struct v4l2_event ev;
     int ret;
-    GPDisplayEGL* display =
-        dynamic_cast<GPDisplayEGL*>(GetChild(BeaderType::EGLDisplaySink).get());
 
     pthread_setname_np(pthread_self(), "DecCapPlane");
 
@@ -893,19 +867,19 @@ void* GPNvVideoDecoder::dec_capture_loop_fcn()
                              v4l2_buf.timestamp.tv_usec);
             }
 
-            if (display && ctx->stats) {
+            if (ctx->stats) {
                 // EglRenderer requires the fd of the 0th plane to render the
                 // buffer
                 if (ctx->capture_plane_mem_type == V4L2_MEMORY_DMABUF)
                     dec_buffer->planes[0].fd = ctx->dmabuff_fd[v4l2_buf.index];
                 // ctx->renderer->render(dec_buffer->planes[0].fd);
-                display->Display(dec_buffer->planes[0].fd);
+                Display(dec_buffer->planes[0].fd);
             }
 
             // If we need to write to file or display the buffer,
             // give the buffer to video converter output plane
             // instead of returning the buffer back to decoder capture plane
-            if (display && !ctx->stats) {
+            if (!ctx->stats) {
                 if (!use_nvbuf_transform_api_) {
                     NvBuffer* conv_buffer;
                     struct v4l2_buffer conv_output_buffer;
@@ -982,8 +956,8 @@ void* GPNvVideoDecoder::dec_capture_loop_fcn()
                         // }
                     }
 
-                    if (!ctx->stats && display) {
-                        display->Display(ctx->dst_dma_fd);
+                    if (!ctx->stats) {
+                        Display(ctx->dst_dma_fd);
                     }
 
                     // Not writing to file
@@ -1030,7 +1004,7 @@ void* GPNvVideoDecoder::dec_capture_loop_fcn()
 
 void GPNvVideoDecoder::set_defaults()
 {
-    memset(ctx_.get(), 0, sizeof(VideoDecodeContext_T));
+    memset(ctx_, 0, sizeof(VideoDecodeContext_T));
     ctx_->decoder_pixfmt = V4L2_PIX_FMT_H264;
     ctx_->fullscreen = false;
     // ctx_->window_height = 0;
@@ -1075,16 +1049,17 @@ bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos)
     // Since all the output plane buffers have been queued, we first need to
     // dequeue a buffer from output plane before we can read new data into it
     // and queue it again.
-    int allow_DQ = true;
     int ret = 0;
     struct v4l2_event ev;
 
-    GPFileSrc* file_src =
-        dynamic_cast<GPFileSrc*>(FindParent(BeaderType::FileSrc).get());
-    GPDisplayEGL* display =
-        dynamic_cast<GPDisplayEGL*>(GetChild(BeaderType::EGLDisplaySink).get());
+    GPFileSrc* file_src = nullptr;
+    auto displays = display_sinks_;
     int plane_buffer_index = 0;
     int max_plane_buffer = ctx_->dec->output_plane.getNumBuffers();
+
+    if (auto a = file_src_.lock()) {
+        file_src = dynamic_cast<GPFileSrc*>(a.get());
+    }
 
     // while (!ctx_->got_error && !ctx_->dec->isInError()) {
     while (!ctx_->got_error) {
@@ -1109,12 +1084,6 @@ bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos)
             SPDLOG_CRITICAL("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:{}",
                             buffer_.size());
         }
-
-        int x1 = ctx_->dec->output_plane.getNumBuffers();
-        int y1 = ctx_->dec->output_plane.getNumPlanes();
-        int x2 = ctx_->dec->output_plane.getNumQueuedBuffers();
-        int y2 = ctx_->dec->output_plane.getTotalDequeuedBuffers();
-        int x3 = ctx_->dec->output_plane.getTotalQueuedBuffers();
 
         if (ctx_->dec->output_plane.getNumQueuedBuffers() ==
             ctx_->dec->output_plane.getNumBuffers()) {
@@ -1299,7 +1268,7 @@ bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos)
                             v4l2_capture_buf.timestamp.tv_usec);
             }
 
-            if (display && ctx_->stats) {
+            if (ctx_->stats) {
                 // Rendering the buffer here
                 // EglRenderer requires the fd of the 0th plane to render the
                 // buffer
@@ -1308,14 +1277,15 @@ bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos)
                         ctx_->dmabuff_fd[v4l2_capture_buf.index];
                 // cout << "Enqueue the buffer to renderer " <<
                 // capture_buffer->planes[0].fd << endl;
-                if (display->Display(capture_buffer->planes[0].fd) == -1) {
-                    Abort();
-                    SPDLOG_ERROR("Error while queueing buffer for rendering ");
-                    break;
-                }
+                // if (display->Display(capture_buffer->planes[0].fd) == -1) {
+                //     Abort();
+                //     SPDLOG_ERROR("Error while queueing buffer for rendering
+                //     "); break;
+                // }
+                Display(capture_buffer->planes[0].fd);
             }
 
-            if (display && !ctx_->stats) {
+            if (!ctx_->stats) {
                 NvBufferRect src_rect, dest_rect;
                 src_rect.top = 0;
                 src_rect.left = 0;
@@ -1371,8 +1341,8 @@ bool GPNvVideoDecoder::decoder_proc_nonblocking(bool eos)
                 //     buffer_handler->Process(&data);
                 // }
 
-                if (!ctx_->stats && display) {
-                    display->Display(ctx_->dst_dma_fd);
+                if (!ctx_->stats) {
+                    Display(ctx_->dst_dma_fd);
                 }
                 // Queue the buffer back once it has been used.
                 // If we are not rendering, queue the buffer back here
@@ -1400,10 +1370,8 @@ bool GPNvVideoDecoder::decoder_proc_blocking(bool eos)
     // Since all the output plane buffers have been queued, we first need to
     // dequeue a buffer from output plane before we can read new data into it
     // and queue it again.
-    int allow_DQ = true;
     int ret = 0;
-    struct v4l2_buffer temp_buf;
-    VideoDecodeContext_T& ctx = *ctx_.get();
+    VideoDecodeContext_T& ctx = *ctx_;
     int plane_buffer_index = 0;
     int max_plane_buffer = ctx_->dec->output_plane.getNumBuffers();
 
@@ -1508,10 +1476,16 @@ int GPNvVideoDecoder::Proc()
     int error = 0;
     NvApplicationProfiler& profiler =
         NvApplicationProfiler::getProfilerInstance();
-    GPDisplayEGL* display =
-        dynamic_cast<GPDisplayEGL*>(GetChild(BeaderType::EGLDisplaySink).get());
 
     set_defaults();
+
+    file_src_ =
+        std::dynamic_pointer_cast<GPFileSrc>(FindParent(BeaderType::FileSrc));
+    auto displays = GetChildren(BeaderType::EGLDisplaySink);
+    for (auto& display : displays) {
+        display_sinks_.emplace_back(
+            std::dynamic_pointer_cast<GPDisplayEGLSink>(display));
+    }
 
     pthread_setname_np(pthread_self(), "GPNvVideoDecoderProc");
 
@@ -1589,20 +1563,17 @@ int GPNvVideoDecoder::Proc()
     }
 
     if (!use_nvbuf_transform_api_) {
-        if (display) {
-            // Create converter to convert from BL to PL for writing raw video
-            // to file
-            ctx_->conv = NvVideoConverter::createVideoConverter("conv0");
-            TEST_ERROR(!ctx_->conv, "Could not create video converter",
-                       cleanup);
-            ctx_->conv->output_plane.setDQThreadCallback(
-                conv0_output_dqbuf_thread_callback);
-            ctx_->conv->capture_plane.setDQThreadCallback(
-                conv0_capture_dqbuf_thread_callback);
+        // Create converter to convert from BL to PL for writing raw video
+        // to file
+        ctx_->conv = NvVideoConverter::createVideoConverter("conv0");
+        TEST_ERROR(!ctx_->conv, "Could not create video converter", cleanup);
+        ctx_->conv->output_plane.setDQThreadCallback(
+            conv0_output_dqbuf_thread_callback);
+        ctx_->conv->capture_plane.setDQThreadCallback(
+            conv0_capture_dqbuf_thread_callback);
 
-            if (ctx_->stats) {
-                ctx_->conv->enableProfiling();
-            }
+        if (ctx_->stats) {
+            ctx_->conv->enableProfiling();
         }
     }
 
@@ -1634,22 +1605,19 @@ int GPNvVideoDecoder::Proc()
                 ctx_->conv->printProfilingStats(std::cout);
             }
         }
-        if (display) {
-            display->printProfilingStats();
-        }
+        PrintProfilingStats();
+
         profiler.printProfilerData(std::cout);
     }
 
 cleanup:
     if (ctx_->blocking_mode) {
-        dec_capture_loop_.join();
     }
     else {
         // Clear the poll interrupt to get the decoder's poll thread out.
         ctx_->dec->ClearPollInterrupt();
         // If Pollthread is waiting on, signal it to exit the thread.
         pollthread_sema_.release();
-        decoder_poll_thread_.join();
     }
 
     if (ctx_->capture_plane_mem_type == V4L2_MEMORY_DMABUF) {
@@ -1751,6 +1719,58 @@ void GPNvVideoDecoder::ProcessData()
             ctx_->conv->capture_plane.waitForDQThread(-1);
         }
     }
+}
+
+void GPNvVideoDecoder::Display(int fd)
+{
+    std::for_each(display_sinks_.begin(), display_sinks_.end(),
+                  [&](std::weak_ptr<GPDisplayEGLSink>& a) {
+                      if (auto display = a.lock()) {
+                          // Destroy the old instance of renderer as
+                          // resolution might have changed delete
+                          // ctx_->renderer;
+                          //
+                          // if (ctx_->fullscreen) {
+                          //     // Required for fullscreen
+                          //     window_width = window_height = 0;
+                          // }
+                          // else if (ctx_->window_width &&
+                          // ctx_->window_height) {
+                          //     // As specified by user on commandline
+                          //     window_width = ctx_->window_width;
+                          //     window_height = ctx_->window_height;
+                          // }
+                          // else {
+                          //     // Resolution got from the decoder
+                          //     window_width = crop.c.width;
+                          //     window_height = crop.c.height;
+                          // }
+
+                          // bool renderer_error =
+                          //     display->Initialize(ctx_->fps, true,
+                          //     ctx_->window_x, ctx_->window_y,
+                          //                         window_width,
+                          //                         window_height);
+                          // TEST_ERROR(!renderer_error,
+                          //            "Error in setting up renderer. "
+                          //            "Check if X is running or run
+                          //            with
+                          //            --disable-rendering", error);
+                          display->Display(fd);
+
+                          //   display->enableProfiling();
+                      }
+                  });
+}
+
+void GPNvVideoDecoder::PrintProfilingStats()
+{
+    std::for_each(display_sinks_.begin(), display_sinks_.end(),
+                  [&](std::weak_ptr<GPDisplayEGLSink>& a) {
+                      if (auto display = a.lock()) {
+                          display->printProfilingStats();
+                      }
+                  });
 }
 
 }  // namespace GPlayer

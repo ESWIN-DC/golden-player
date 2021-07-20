@@ -2,9 +2,9 @@
 
 A C++ multimedia framework for NVIDIA® Jetson modules.
 
-## Build Prerequisites
+## Prerequisites
 
-The first step is to pull the source code. You can clone the source code by following commands.
+To pull the source code. You can clone the source code by following commands.
 
 ```bash
 git clone https://github.com/ESWIN-DC/golden-player
@@ -20,19 +20,25 @@ cd golden-player
 git submodule update --init --recursive
 ```
 
-The next step is to build prerequisities.
-
-```bash
-./scripts/build-thirdparty.sh
-```
-
 ## How to build
+
+### 1. Set environment variables
 
 Golden player supports cross compilation and native compilation. You must update the environment variables. For to fit your requirements, please modify the script text in the "scripts/env.sh".
 
 ```bash
 source ./scripts/env.sh
 ```
+
+The upward script needs a target "TARGET_ROOTFS", which is the jetson system image. For more information, please refer to the jetson online documentation: https://docs.nvidia.com/jetson/l4t-multimedia/cross_platform_support.html.
+
+### 2. Build thirdparties
+
+```bash
+./scripts/build-thirdparty.sh
+```
+
+### 3. Build
 
 Golden Player supports both make and cmake, but we will deprecate make in the future, and move to cmake. The following is the usage of cmake.
 

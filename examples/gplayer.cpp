@@ -8,25 +8,17 @@ using namespace GPlayer;
 int main(int argc, char* argv[])
 {
     spdlog::set_level(spdlog::level::trace);
-
     int ret = 0;
-    std::shared_ptr<VideoDecodeContext_T> dcontext =
-        std::make_shared<VideoDecodeContext_T>();
-    std::shared_ptr<VideoEncodeContext_T> econtext =
-        std::make_shared<VideoEncodeContext_T>();
-
-    dcontext->decoder_pixfmt = V4L2_PIX_FMT_H264;
 
     std::shared_ptr<GPNvVideoDecoder> nvvideodecoder =
-        std::make_shared<GPNvVideoDecoder>(dcontext);
-    std::shared_ptr<GPNvVideoEncoder> nvvideoencoder =
-        std::make_shared<GPNvVideoEncoder>(econtext);
+        std::make_shared<GPNvVideoDecoder>();
     std::shared_ptr<CameraRecorder> recorder =
         std::make_shared<CameraRecorder>();
     std::shared_ptr<GPNvJpegDecoder> nvjpegdecoder =
         std::make_shared<GPNvJpegDecoder>();
     std::shared_ptr<GPCameraV4l2> v4l2 = std::make_shared<GPCameraV4l2>();
-    std::shared_ptr<GPDisplayEGL> egl = std::make_shared<GPDisplayEGL>();
+    std::shared_ptr<GPDisplayEGLSink> egl =
+        std::make_shared<GPDisplayEGLSink>();
     std::shared_ptr<GPFileSink> h264file =
         std::make_shared<GPFileSink>(std::string("try001.h264"));
     std::shared_ptr<GPFileSink> mjpegfile =

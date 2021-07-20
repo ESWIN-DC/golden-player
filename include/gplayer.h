@@ -12,5 +12,6 @@
 #include "gp_nvvideo_decoder.h"
 #include "gp_nvvideo_encoder.h"
 #include "gp_pipeline.h"
+#include "gp_video_decoder_group.h"
 
 #endif  // __GPLAYER__

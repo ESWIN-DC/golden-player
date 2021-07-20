@@ -297,8 +297,8 @@ bool GPCameraV4l2::camera_initialize(v4l2_context_t* ctx)
 
 bool GPCameraV4l2::init_components(v4l2_context_t* ctx)
 {
-    GPDisplayEGL* display =
-        dynamic_cast<GPDisplayEGL*>(GetChild(BeaderType::EGLDisplaySink).get());
+    GPDisplayEGLSink* display = dynamic_cast<GPDisplayEGLSink*>(
+        GetChild(BeaderType::EGLDisplaySink).get());
 
     if (!camera_initialize(ctx))
         ERROR_RETURN("Failed to initialize camera device");
@@ -527,8 +527,8 @@ bool GPCameraV4l2::start_capture(v4l2_context_t* ctx)
     NvBufferTransformParams transParams;
     GPNvJpegDecoder* jpeg_decoder = dynamic_cast<GPNvJpegDecoder*>(
         GetChild(BeaderType::NvJpegDecoder).get());
-    GPDisplayEGL* display =
-        dynamic_cast<GPDisplayEGL*>(GetChild(BeaderType::EGLDisplaySink).get());
+    GPDisplayEGLSink* display = dynamic_cast<GPDisplayEGLSink*>(
+        GetChild(BeaderType::EGLDisplaySink).get());
 
     // Ensure a clean shutdown if user types <ctrl+c>
     sig_action.sa_handler = signal_handle;
