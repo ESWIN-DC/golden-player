@@ -52,6 +52,7 @@ add_library(golden-player STATIC
     gp_filesink.cpp
     gp_filesrc.cpp
     gp_socket_server.cpp
+    gp_socket_client.cpp
     gp_pipeline.cpp)
 
 install(TARGETS golden-player DESTINATION lib)
