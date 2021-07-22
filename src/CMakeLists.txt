@@ -41,6 +41,9 @@ add_library(golden-player STATIC
     gp_beader.cpp
     gp_threadpool.cpp
     gp_configuration.cpp
+    MMO_Server.cpp
+    SimpleClient.cpp
+    SimpleServer.cpp
     video_decode_context.cpp
     video_encode_context.cpp
     gp_nvjpeg_decoder.cpp
