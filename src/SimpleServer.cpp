@@ -10,18 +10,18 @@ enum class CustomMsgTypes : uint32_t {
     ServerMessage,
 };
 
-class CustomServer : public olc::net::server_interface<CustomMsgTypes> {
+class CustomServer : public GPlayer::net::server_interface1<CustomMsgTypes> {
 public:
     CustomServer(uint16_t nPort)
-        : olc::net::server_interface<CustomMsgTypes>(nPort)
+        : GPlayer::net::server_interface1<CustomMsgTypes>(nPort)
     {
     }
 
 protected:
     virtual bool OnClientConnect(
-        std::shared_ptr<olc::net::connection<CustomMsgTypes>> client)
+        std::shared_ptr<GPlayer::net::connection<CustomMsgTypes>> client)
     {
-        olc::net::message<CustomMsgTypes> msg;
+        GPlayer::net::message<CustomMsgTypes> msg;
         msg.header.id = CustomMsgTypes::ServerAccept;
         client->Send(msg);
         return true;
@@ -29,15 +29,15 @@ protected:
 
     // Called when a client appears to have disconnected
     virtual void OnClientDisconnect(
-        std::shared_ptr<olc::net::connection<CustomMsgTypes>> client)
+        std::shared_ptr<GPlayer::net::connection<CustomMsgTypes>> client)
     {
         std::cout << "Removing client [" << client->GetID() << "]\n";
     }
 
     // Called when a message arrives
     virtual void OnMessage(
-        std::shared_ptr<olc::net::connection<CustomMsgTypes>> client,
-        olc::net::message<CustomMsgTypes>& msg)
+        std::shared_ptr<GPlayer::net::connection<CustomMsgTypes>> client,
+        GPlayer::net::message<CustomMsgTypes>& msg)
     {
         switch (msg.header.id) {
             case CustomMsgTypes::ServerPing: {
@@ -51,7 +51,7 @@ protected:
                 std::cout << "[" << client->GetID() << "]: Message All\n";
 
                 // Construct a new message and send it to all clients
-                olc::net::message<CustomMsgTypes> msg;
+                GPlayer::net::message<CustomMsgTypes> msg;
                 msg.header.id = CustomMsgTypes::ServerMessage;
                 msg << client->GetID();
                 MessageAllClients(msg, client);

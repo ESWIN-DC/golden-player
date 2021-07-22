@@ -11,11 +11,11 @@ enum class CustomMsgTypes : uint32_t {
     ServerMessage,
 };
 
-class CustomClient : public olc::net::client_interface<CustomMsgTypes> {
+class CustomClient : public GPlayer::net::client_interface<CustomMsgTypes> {
 public:
     void PingServer()
     {
-        olc::net::message<CustomMsgTypes> msg;
+        GPlayer::net::message<CustomMsgTypes> msg;
         msg.header.id = CustomMsgTypes::ServerPing;
 
         // Caution with this...
@@ -28,7 +28,7 @@ public:
 
     void MessageAll()
     {
-        olc::net::message<CustomMsgTypes> msg;
+        GPlayer::net::message<CustomMsgTypes> msg;
         msg.header.id = CustomMsgTypes::MessageAll;
         Send(msg);
     }
