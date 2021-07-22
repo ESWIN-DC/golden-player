@@ -1,11 +1,11 @@
 #ifndef __GPBEADER_H__
 #define __GPBEADER_H__
 
+#include <mutex>
 #include <string>
 #include <vector>
 
 #include "gp_data.h"
-#include "gp_log.h"
 
 namespace GPlayer {
 

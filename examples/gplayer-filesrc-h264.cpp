@@ -1,13 +1,10 @@
 
-#include <spdlog/common.h>
-
 #include "gplayer.h"
 
 using namespace GPlayer;
 
 int main(int argc, char* argv[])
 {
-    spdlog::set_level(spdlog::level::trace);
     int ret = 0;
 
     std::shared_ptr<GPNvVideoDecoder> nvvideodecoder =

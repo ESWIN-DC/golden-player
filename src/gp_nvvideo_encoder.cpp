@@ -11,9 +11,11 @@
 #include <utility>
 
 #include <fstream>
+#include "gp_log.h"
 #include "nlohmann/json.hpp"
 
 #include "NvUtils.h"
+#include "NvVideoEncoder.h"
 
 #include <nvbuf_utils.h>
 
@@ -36,6 +38,69 @@ namespace GPlayer {
 
 #define IS_DIGIT(c) (c >= '0' && c <= '9')
 #define MICROSECOND_UNIT 1000000
+
+// Initialise CRC Rec and creates CRC Table based on the polynomial.
+Crc* InitCrc(unsigned int CrcPolynomial)
+{
+    unsigned short int i;
+    unsigned short int j;
+    unsigned int tempcrc;
+    Crc* phCrc;
+    phCrc = (Crc*)malloc(sizeof(Crc));
+    if (phCrc == NULL) {
+        SPDLOG_CRITICAL("Mem allocation failed for Init CRC");
+        return NULL;
+    }
+
+    memset(phCrc, 0, sizeof(Crc));
+
+    for (i = 0; i <= 255; i++) {
+        tempcrc = i;
+        for (j = 8; j > 0; j--) {
+            if (tempcrc & 1) {
+                tempcrc = (tempcrc >> 1) ^ CrcPolynomial;
+            }
+            else {
+                tempcrc >>= 1;
+            }
+        }
+        phCrc->CRCTable[i] = tempcrc;
+    }
+
+    phCrc->CrcValue = 0;
+    return phCrc;
+}
+
+// Calculates CRC of data provided in by buffer.
+
+void CalculateCrc(Crc* phCrc, unsigned char* buffer, uint32_t count)
+{
+    unsigned char* p;
+    unsigned int temp1;
+    unsigned int temp2;
+    unsigned int crc = phCrc->CrcValue;
+    unsigned int* CRCTable = phCrc->CRCTable;
+
+    if (!count)
+        return;
+
+    p = (unsigned char*)buffer;
+    while (count-- != 0) {
+        temp1 = (crc >> 8) & 0x00FFFFFFL;
+        temp2 = CRCTable[((unsigned int)crc ^ *p++) & 0xFF];
+        crc = temp1 ^ temp2;
+    }
+
+    phCrc->CrcValue = crc;
+}
+
+// Closes CRC related handles.
+
+void CloseCrc(Crc** phCrc)
+{
+    if (*phCrc)
+        free(*phCrc);
+}
 
 using namespace std;
 
@@ -112,8 +177,8 @@ bool GPNvVideoEncoder::encoder_capture_plane_dq_callback(
 
     // Computing CRC with each frame
     if (ctx->pBitStreamCrc)
-        videoEncoder->CalculateCrc(ctx->pBitStreamCrc, buffer->planes[0].data,
-                                   buffer->planes[0].bytesused);
+        CalculateCrc(ctx->pBitStreamCrc, buffer->planes[0].data,
+                     buffer->planes[0].bytesused);
 
     // videoEncoder->write_encoder_output_frame(ctx->out_file, buffer);
     GPFileSink* handler = dynamic_cast<GPFileSink*>(

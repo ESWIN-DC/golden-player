@@ -5,12 +5,9 @@
 #include <functional>
 #include <queue>
 
-#include "NvCudaProc.h"
-#include "NvEglRenderer.h"
 #include "NvUtils.h"
+#include "NvVideoEncoder.h"
 #include "nvbuf_utils.h"
-
-#include "NvJpegDecoder.h"
 
 #include "gp_beader.h"
 

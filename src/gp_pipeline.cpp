@@ -1,10 +1,15 @@
 #include <thread>
 
+#include "gp_log.h"
 #include "gp_pipeline.h"
 
 namespace GPlayer {
 
-GPPipeline::GPPipeline() {}
+GPPipeline::GPPipeline()
+{
+    spdlog::set_level(spdlog::level::trace);
+}
+
 GPPipeline::~GPPipeline()
 {
     std::for_each(threads_.begin(), threads_.end(), [&](std::thread& thread) {

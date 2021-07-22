@@ -1,4 +1,5 @@
 #include "gp_filesink.h"
+#include "gp_log.h"
 
 namespace GPlayer {
 

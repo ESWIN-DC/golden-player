@@ -1,6 +1,7 @@
 
 #include <asio.hpp>
 
+#include "gp_log.h"
 #include "gp_socket_client.h"
 
 namespace GPlayer {

@@ -9,18 +9,10 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 include_directories(
     ../include
-	"${THIRDPARTY_DIR}/spdlog/include" 
-	"${THIRDPARTY_DIR}/json/include" 
 	"${THIRDPARTY_DIR}/tegra_multimedia_api/include"
     "${THIRDPARTY_DIR}/tegra_multimedia_api/argus/include"
-	"${THIRDPARTY_DIR}/tegra_multimedia_api/include/libjpeg-8b" 
-	"${ALGO_CUDA_DIR}" 
-	"${ALGO_TRT_DIR}"
-    "${ARGUS_UTILS_DIR}"
-	"${CMAKE_SYSROOT}/${CUDA_PATH}/include" 
-	"${CMAKE_SYSROOT}/usr/include/${TEGRA_ARMABI}" 
-	"${CMAKE_SYSROOT}/usr/include/libdrm" 
-	"${CMAKE_SYSROOT}/usr/include/opencv4")
+    "${THIRDPARTY_DIR}/tegra_multimedia_api/include/libjpeg-8b"
+)
 
 set(CMAKE_INSTALL_RPATH
 	"${CMAKE_SYSROOT}/lib/${TEGRA_ARMABI}"
