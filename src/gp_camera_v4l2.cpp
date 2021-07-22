@@ -12,12 +12,23 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
-
 #include <fstream>
-#include "nlohmann/json.hpp"
+
+#include "NvCudaProc.h"
+#include "NvEglRenderer.h"
+#include "NvUtils.h"
+#include "nvbuf_utils.h"
+
+// #include "NvEglRenderer.h"
+// #include "NvVideoConverter.h"
+// #include "NvVideoDecoder.h"
+// #include "NvVideoEncoder.h"
+
+#include "NvJpegDecoder.h"
 
 #include "gp_camera_v4l2.h"
 #include "gp_log.h"
+#include "nlohmann/json.hpp"
 namespace GPlayer {
 
 #define MJPEG_EOS_SEARCH_SIZE 4096

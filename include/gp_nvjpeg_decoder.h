@@ -3,16 +3,13 @@
 
 #include "gp_beader.h"
 
-#include "NvJpegDecoder.h"
+class NvJPEGDecoder;
 
 namespace GPlayer {
+
 class GPNvJpegDecoder : public IBeader {
 public:
-    explicit GPNvJpegDecoder()
-    {
-        SetProperties("", "", BeaderType::NvJpegDecoder);
-        jpegdec_ = NvJPEGDecoder::createJPEGDecoder("jpegdec");
-    }
+    explicit GPNvJpegDecoder();
     std::string GetInfo() const override { return "NVJpegDecoder"; }
     bool HasProc() override { return false; };
     int decodeToFd(int& fd,
@@ -20,11 +17,7 @@ public:
                    uint32_t bytesused,
                    uint32_t& pixfmt,
                    uint32_t& width,
-                   uint32_t& height)
-    {
-        return jpegdec_->decodeToFd(fd, buffer, bytesused, pixfmt, width,
-                                    height);
-    }
+                   uint32_t& height);
 
 private:
     // MJPEG decoding

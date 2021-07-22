@@ -49,44 +49,53 @@ std::string IBeader::GetDescription() const
     return description_;
 }
 
-void IBeader::Link(const std::shared_ptr<IBeader>& beader)
+bool IBeader::Link(const std::shared_ptr<IBeader>& beader)
 {
     std::lock_guard<std::recursive_mutex> guard(mutex_);
-    if (beader->type_ == BeaderType::Unknown) {
-        SPDLOG_ERROR("BUGBUG: unkown handler: {}", beader->GetInfo());
+    auto pipeline = pipeline_.lock();
+
+    if (!pipeline) {
+        SPDLOG_ERROR("BUGBUG: No pipeline: {}", beader->GetInfo());
+        return false;
     }
 
-    if (beader->pipeline_ != pipeline_) {
+    if (beader->type_ == BeaderType::Unknown) {
+        SPDLOG_WARN("BUGBUG: unkown handler: {}", beader->GetInfo());
+    }
+
+    if (pipeline != beader->pipeline_.lock()) {
         SPDLOG_WARN(
             "BUGBUG: Cannot link beaders [{} {}] from different pipelines.",
             GetInfo(), beader->GetInfo());
+        return false;
     }
 
     if (beader->GetChild(type_).get() == this) {
         SPDLOG_ERROR("BUGBUG: Cannot link the beaders to each other.");
-        return;
+        return false;
     }
 
     if (beader->IsPassive()) {
         child_beaders_.emplace_back(beader);
         SPDLOG_TRACE("{} linked the beader type={} info={} ...", GetInfo(),
                      beader->GetType(), beader->GetInfo());
-        return;
+        return true;
     }
 
-    std::vector<std::shared_ptr<IBeader>> beaders = pipeline_->GetBeaderList();
+    std::vector<std::shared_ptr<IBeader>> beaders = pipeline->GetBeaderList();
     for (auto it = beaders.begin(); it != beaders.end(); ++it) {
         if ((*it).get() == this) {
             std::lock_guard<std::recursive_mutex> guard(beader->mutex_);
             beader->child_beaders_.emplace_back(*it);
             SPDLOG_TRACE("{} reverse linked the beader type={} info={} ...",
                          GetInfo(), beader->GetType(), beader->GetInfo());
-            return;
+            return true;
         }
     }
 
     SPDLOG_TRACE("{} is unable to link the beader type={} info={} ...",
                  GetInfo(), beader->GetType(), beader->GetInfo());
+    return false;
 }
 
 void IBeader::Link(const std::vector<std::shared_ptr<IBeader>>& beaders)
@@ -97,7 +106,7 @@ void IBeader::Link(const std::vector<std::shared_ptr<IBeader>>& beaders)
         [&](const std::shared_ptr<IBeader>& beader) { Link(beader); });
 }
 
-void IBeader::Unlink(IBeader* beader)
+void IBeader::Unlink(const std::shared_ptr<IBeader>& beader)
 {
     Unlink(beader->GetType());
 }
@@ -166,13 +175,13 @@ bool IBeader::HasChild(const IBeader& beader)
 
 std::shared_ptr<IBeader> IBeader::FindParent(BeaderType type)
 {
-    if (pipeline_) {
-        return pipeline_->FindBeaderParent(*this, type);
+    if (auto pipeline = pipeline_.lock()) {
+        return pipeline->FindBeaderParent(*this, type);
     }
     return nullptr;
 }
 
-bool IBeader::Attach(GPPipeline* pipeline)
+bool IBeader::Attach(const std::shared_ptr<GPPipeline>& pipeline)
 {
     pipeline_ = pipeline;
     return false;

@@ -9,6 +9,7 @@ include_directories(
     ../include
     "${THIRDPARTY_DIR}/spdlog/include"
     "${THIRDPARTY_DIR}/json/include"
+    "${THIRDPARTY_DIR}/asio/asio/include"
     "${THIRDPARTY_DIR}/tegra_multimedia_api/include"
     "${THIRDPARTY_DIR}/tegra_multimedia_api/argus/include"
     "${THIRDPARTY_DIR}/tegra_multimedia_api/include/libjpeg-8b"
@@ -42,6 +43,7 @@ add_library(golden-player STATIC
     gp_configuration.cpp
     video_decode_context.cpp
     video_encode_context.cpp
+    gp_nvjpeg_decoder.cpp
     gp_nvvideo_decoder.cpp
     gp_video_decoder_group.cpp
     gp_nvvideo_encoder.cpp
@@ -50,6 +52,8 @@ add_library(golden-player STATIC
     gp_display_egl.cpp
     gp_filesink.cpp
     gp_filesrc.cpp
+    gp_socket_server.cpp
+    gp_socket_client.cpp
     gp_pipeline.cpp)
 
 install(TARGETS golden-player DESTINATION lib)

@@ -30,7 +30,7 @@ namespace GPlayer {
     }
 
 const uint32_t MICROSECOND_UNIT = 1000000;
-const uint32_t CHUNK_SIZE = 400000L;
+const uint32_t CHUNK_SIZE = 4000000L;
 
 #define IS_NAL_UNIT_START(buffer_ptr) \
     (!buffer_ptr[0] && !buffer_ptr[1] && !buffer_ptr[2] && (buffer_ptr[3] == 1))
@@ -304,7 +304,6 @@ bool GPNvVideoDecoder::conv0_capture_dqbuf_thread_callback(
 {
     GPNvVideoDecoder* decoder = static_cast<GPNvVideoDecoder*>(arg);
     VideoDecodeContext_T* ctx = decoder->ctx_;
-    auto displays = decoder->display_sinks_;
 
     if (!v4l2_buf) {
         SPDLOG_ERROR("Error while dequeueing conv capture plane buffer");
@@ -322,13 +321,8 @@ bool GPNvVideoDecoder::conv0_capture_dqbuf_thread_callback(
         // write_video_frame(ctx->out_file, *buffer);
     }
 
-    if (!ctx->stats && displays.size() > 0) {
-        std::for_each(displays.begin(), displays.end(),
-                      [&](std::weak_ptr<GPDisplayEGLSink>& a) {
-                          if (auto display = a.lock()) {
-                              display->Display(buffer->planes[0].fd);
-                          }
-                      });
+    if (!ctx->stats) {
+        decoder->Display(buffer->planes[0].fd);
     }
 
     if (ctx->conv->capture_plane.qBuffer(*v4l2_buf, NULL) < 0) {
@@ -741,7 +735,7 @@ error:
         Abort();
         SPDLOG_ERROR("Error in {}", __func__);
     }
-}  // namespace GPlayer
+}
 
 void* GPNvVideoDecoder::decoder_pollthread_fcn()
 {

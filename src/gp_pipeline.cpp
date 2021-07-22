@@ -1,10 +1,15 @@
 #include <thread>
 
+#include "gp_log.h"
 #include "gp_pipeline.h"
 
 namespace GPlayer {
 
-GPPipeline::GPPipeline() {}
+GPPipeline::GPPipeline()
+{
+    spdlog::set_level(spdlog::level::trace);
+}
+
 GPPipeline::~GPPipeline()
 {
     std::for_each(threads_.begin(), threads_.end(), [&](std::thread& thread) {
@@ -17,7 +22,7 @@ GPPipeline::~GPPipeline()
 bool GPPipeline::Add(const std::shared_ptr<IBeader>& element)
 {
     elements_.emplace_back(element);
-    element->Attach(this);
+    element->Attach(shared_from_this());
     return true;
 }
 
@@ -27,7 +32,7 @@ bool GPPipeline::Add(const std::vector<std::shared_ptr<IBeader>>& elementList)
     std::for_each(
         elements_.begin(), elements_.end(),
         [&](std::shared_ptr<IBeader>& element) {
-            element->Attach(this);
+            element->Attach(shared_from_this());
             SPDLOG_TRACE(
                 "The beader [type={} info={}] attached to pipeline ...",
                 element->GetType(), element->GetInfo());

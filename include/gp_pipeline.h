@@ -26,7 +26,7 @@ struct GPMessage {
     GPMessageType type;
 };
 
-class GPPipeline {
+class GPPipeline : public std::enable_shared_from_this<GPPipeline> {
 private:
 public:
     GPPipeline();

@@ -1,17 +1,10 @@
 
-#include <spdlog/common.h>
-
 #include "gplayer.h"
 
 using namespace GPlayer;
 
 int main(int argc, char* argv[])
 {
-    spdlog::set_error_handler([](const std::string& msg) {
-        spdlog::get("console")->error("*** LOGGER ERROR ***: {}", msg);
-    });
-    spdlog::set_level(spdlog::level::trace);
-
     int ret = 0;
     std::shared_ptr<GPNvJpegDecoder> nvjpegdecoder =
         std::make_shared<GPNvJpegDecoder>();
