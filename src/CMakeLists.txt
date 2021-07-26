@@ -28,7 +28,7 @@ add_custom_command(
     OUTPUT ${ALGO_CUDA_DIR}/NvCudaProc.o
     COMMAND make -C ${ALGO_CUDA_DIR}
     WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
-    COMMENT "Build CUDA ..."
+    COMMENT "Building CUDA ..."
 )
 
 add_library(golden-player STATIC
@@ -53,7 +53,7 @@ add_library(golden-player STATIC
     gp_display_egl.cpp
     gp_filesink.cpp
     gp_filesrc.cpp
-    gp_socket_server.cpp
+    # gp_socket_server.cpp
     gp_socket_client.cpp
     gp_pipeline.cpp)
 

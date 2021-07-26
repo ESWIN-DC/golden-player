@@ -19,9 +19,7 @@ int main(int argc, char* argv[])
         std::make_shared<GPFileSink>(std::string("try001.h264"));
 
     std::shared_ptr<GPPipeline> pipeline = std::make_shared<GPPipeline>();
-    std::vector<std::shared_ptr<GPlayer::IBeader> > elements{
-        v4l2, h264file, nvvideodecoder, egl};
-    pipeline->Add(elements);
+    pipeline->AddMany(v4l2, h264file, nvvideodecoder, egl);
 
     v4l2->LoadConfiguration("camera-v4l2.json");
 

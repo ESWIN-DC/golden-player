@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.18)
 project(golden-player
         VERSION 0.1.0
-        LANGUAGES CXX CUDA)
+        LANGUAGES CXX)
 
 include_directories(${CMAKE_BINARY_DIR})
 configure_file("${CMAKE_SOURCE_DIR}/version.h.in" "${CMAKE_BINARY_DIR}/version.h" @ONLY)
@@ -74,7 +74,7 @@ file(MAKE_DIRECTORY ${PROJECT_INCLUDE_DIR}/golden-player)
 file(GLOB gplayerIncludes include/*.h)
 
 foreach(include ${gplayerIncludes})
-    message("-- Copying ${include}")
+    message("-- Copying ${include} to ${PROJECT_INCLUDE_DIR}/golden-player")
     configure_file(${include} ${PROJECT_INCLUDE_DIR}/golden-player COPYONLY)
 endforeach()
 

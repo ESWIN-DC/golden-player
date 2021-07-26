@@ -15,9 +15,7 @@ int main(int argc, char* argv[])
         std::make_shared<GPFileSink>(std::string("try001.h264"));
 
     std::shared_ptr<GPPipeline> pipeline = std::make_shared<GPPipeline>();
-    std::vector<std::shared_ptr<GPlayer::IBeader> > elements{
-        h264fileSrc, nvvideodecoder, h264file};
-    pipeline->Add(elements);
+    pipeline->AddMany(h264fileSrc, nvvideodecoder, h264file);
 
     uint32_t w = 1920 / 8;
     uint32_t h = 1080 / 6;

@@ -42,6 +42,12 @@ public:
     bool AddMessage(const GPMessage& msg);
     bool GetMessage(GPMessage* msg);
 
+    template <typename... T>
+    void AddMany(T&&... multi_beaders)
+    {
+        ([&](auto& beader) { Add(beader); }(multi_beaders), ...);
+    }
+
 private:
     std::vector<std::shared_ptr<IBeader>> elements_;
     std::vector<std::thread> threads_;

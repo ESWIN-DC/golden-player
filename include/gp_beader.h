@@ -49,6 +49,16 @@ public:
     virtual bool Attach(const std::shared_ptr<GPPipeline>& pipeline) final;
     virtual bool HasProc() = 0;
     virtual int Proc();
+    // virtual int OnMessage(
+    //     const std::shared_ptr<std::pair<char*, size_t>>& message)
+    // {
+    // }
+
+    template <typename... T>
+    void LinkMany(T&&... multi_beaders)
+    {
+        ([&](auto& beader) { Link(beader); }(multi_beaders), ...);
+    }
 
 private:
     std::string name_;
