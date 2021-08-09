@@ -17,7 +17,7 @@ private:
     GPMediaServer() = delete;
 
 public:
-    GPMediaServer(uint16_t nPort);
+    GPMediaServer(uint16_t port);
     ~GPMediaServer();
     std::string GetInfo() const;
     bool HasProc() override { return true; };
@@ -27,25 +27,21 @@ public:
 
 protected:
     bool OnClientConnect(
-        std::shared_ptr<GPlayer::net::connection<PlayerMsg>> client) override;
+        std::shared_ptr<net::connection<PlayerMsg>> client) override;
 
     void OnClientValidated(
-        std::shared_ptr<GPlayer::net::connection<PlayerMsg>> client) override;
+        std::shared_ptr<net::connection<PlayerMsg>> client) override;
 
     void OnClientDisconnect(
-        std::shared_ptr<GPlayer::net::connection<PlayerMsg>> client) override;
+        std::shared_ptr<net::connection<PlayerMsg>> client) override;
 
-    void OnMessage(std::shared_ptr<GPlayer::net::connection<PlayerMsg>> client,
-                   GPlayer::net::message<PlayerMsg>& msg) override;
+    void OnMessage(std::shared_ptr<net::connection<PlayerMsg>> client,
+                   net::message<PlayerMsg>& msg) override;
 
 private:
-    std::string filepath_;
-    std::ifstream* inputfile_;
     uint16_t port_;
-
-private:
-    std::unordered_map<uint32_t, sPlayerDescription> m_mapPlayerRoster;
-    std::vector<uint32_t> m_vGarbageIDs;
+    std::unordered_map<uint32_t, sPlayerDescription> player_roster_;
+    std::vector<uint32_t> garbage_ids_;
 };
 
 }  // namespace GPlayer
