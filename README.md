@@ -73,3 +73,9 @@ You can change the default installation directory by running the following comma
 cd build
 cmake --install . --prefix "your prefix path"
 ```
+
+## Examples and Snapshots
+
+![parallel-rendering](snapshots/parallel-rendering.jpeg)
+
+![parallel-decoding-and-rendering](snapshots/parallel-decoding-and-rendering.jpeg)
