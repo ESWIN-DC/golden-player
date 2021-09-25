@@ -12,6 +12,7 @@ include_directories(
 	"${THIRDPARTY_DIR}/tegra_multimedia_api/include"
     "${THIRDPARTY_DIR}/tegra_multimedia_api/argus/include"
     "${THIRDPARTY_DIR}/tegra_multimedia_api/include/libjpeg-8b"
+	"${THIRDPARTY_DIR}/asio/asio/include"
 )
 
 set(CMAKE_INSTALL_RPATH

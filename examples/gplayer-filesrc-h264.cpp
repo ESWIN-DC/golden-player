@@ -17,13 +17,10 @@ int main(int argc, char* argv[])
         std::make_shared<GPFileSink>(std::string("try001.h264"));
 
     std::shared_ptr<GPPipeline> pipeline = std::make_shared<GPPipeline>();
-    std::vector<std::shared_ptr<GPlayer::IBeader> > elements{
-        h264fileSrc, nvvideodecoder, h264file, egl};
-    pipeline->Add(elements);
+    pipeline->AddMany(h264fileSrc, nvvideodecoder, h264file, egl);
 
     h264fileSrc->Link(nvvideodecoder);
-    nvvideodecoder->Link(h264file);
-    nvvideodecoder->Link(egl);
+    nvvideodecoder->LinkMany(h264file, egl);
 
     ret = pipeline->Run();
 

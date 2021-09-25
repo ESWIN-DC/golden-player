@@ -18,8 +18,8 @@ int main(int argc, char* argv[])
     uint32_t w = 1920 / column;
     uint32_t h = 1080 / row;
 
-    std::shared_ptr<GPSocketServer> socket_server =
-        std::make_shared<GPSocketServer>(8888);
+    std::shared_ptr<GPMediaServer> socket_server =
+        std::make_shared<GPMediaServer>(8888);
     std::shared_ptr<GPNvVideoDecoder> nvvideodecoder =
         std::make_shared<GPNvVideoDecoder>();
     std::shared_ptr<GPDisplayEGLSink> egl =

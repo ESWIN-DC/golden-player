@@ -167,3 +167,30 @@ int GPSocketServer::Proc()
 }
 
 }  // namespace GPlayer
+
+#include "asio/coroutine.hpp"
+#include "asio/yield.hpp"
+
+struct session : asio::coroutine {
+    std::shared_ptr<asio::ip::tcp::socket> socket_;
+    std::shared_ptr<std::vector<char> > buffer_;
+
+    session(std::shared_ptr<asio::ip::tcp::socket> socket)
+        : socket_(socket), buffer_(new std::vector<char>(1024))
+    {
+    }
+
+    void operator()(asio::error_code ec = asio::error_code(), std::size_t n = 0)
+    {
+        if (!ec)
+            reenter(this)
+            {
+                for (;;) {
+                    yield socket_->async_read_some(asio::buffer(*buffer_),
+                                                   *this);
+                    yield asio::async_write(*socket_, asio::buffer(*buffer_, n),
+                                            *this);
+                }
+            }
+    }
+};

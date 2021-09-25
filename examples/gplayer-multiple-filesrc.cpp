@@ -28,9 +28,7 @@ int main(int argc, char* argv[])
             std::shared_ptr<GPDisplayEGLSink> egl =
                 std::make_shared<GPDisplayEGLSink>();
             egl->Initialize(30, false, w * i, h * j, w, h);
-            pipeline->Add(h264fileSrc);
-            pipeline->Add(nvvideodecoder);
-            pipeline->Add(egl);
+            pipeline->AddMany(h264fileSrc, nvvideodecoder, egl);
             h264fileSrc->Link(nvvideodecoder);
             nvvideodecoder->Link(egl);
         }
